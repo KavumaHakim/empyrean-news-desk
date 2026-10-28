@@ -15,6 +15,7 @@ public partial class BroadcastWindow : Window
     public event EventHandler<VideoTimeUpdateEventArgs>? TimeUpdated;
     public event EventHandler<TransitionCompleteEventArgs>? TransitionFinished;
     public event EventHandler<ScenePreparedEventArgs>? ScenePrepared;
+    public event EventHandler<string>? PlaybackError;
     public event EventHandler? CanvasReady;
     public event EventHandler? MediaEnded;
 
@@ -114,6 +115,13 @@ public partial class BroadcastWindow : Window
             else if (type == "ended")
             {
                 MediaEnded?.Invoke(this, EventArgs.Empty);
+            }
+            else if (type == "error" && root.TryGetProperty("data", out var errProp))
+            {
+                string message = errProp.TryGetProperty("message", out var msgProp)
+                    ? (msgProp.GetString() ?? "Playback error")
+                    : "Playback error";
+                PlaybackError?.Invoke(this, message);
             }
         }
         catch

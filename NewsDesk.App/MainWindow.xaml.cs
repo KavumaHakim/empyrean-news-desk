@@ -105,7 +105,7 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
             case Key.Escape:
-                _viewModel.ToggleStandbyCommand.Execute(null);
+                _viewModel.EmergencyStandby();
                 e.Handled = true;
                 break;
         }

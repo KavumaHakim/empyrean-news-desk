@@ -61,7 +61,7 @@ c:\Users\SHAMI\HAKIM\NEWS APP\
 │   ├── MainWindow.xaml                # Dark-themed operator control dashboard
 │   └── MainWindow.xaml.cs             # Application entry and keyboard shortcuts
 │
-└── NewsDesk.Tests/                    # Automated Unit Test Suite (26 tests)
+└── NewsDesk.Tests/                    # Automated Unit Test Suite (33 tests)
     └── NewsDeskTests.cs               # Verification of transitions, DB, and state
 ```
 
@@ -83,7 +83,7 @@ dotnet build NewsDesk.sln
 ```powershell
 dotnet test NewsDesk.sln
 ```
-*Result: 26 passed, 0 failed.*
+*Result: 33 passed, 0 failed.*
 
 ### Launch Operator Control Room
 ```powershell

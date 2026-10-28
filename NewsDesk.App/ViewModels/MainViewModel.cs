@@ -378,6 +378,23 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(PreviewMedia));
         OnPropertyChanged(nameof(LiveGraphic));
         OnPropertyChanged(nameof(PreviewGraphic));
+        OnPropertyChanged(nameof(PreviewTransition));
+    }
+
+    /// <summary>
+    /// Transition selected in the Preview monitor for the pending take.
+    /// Persists the assignment (same semantics as the Media Library combo) without
+    /// racing the selection binding in code-behind.
+    /// </summary>
+    public TransitionType PreviewTransition
+    {
+        get => _stateManager.State.PreviewMedia?.AssignedTransition ?? _stateManager.State.ActiveTransition;
+        set
+        {
+            if (_stateManager.State.PreviewMedia == null) return;
+            UpdateMediaTransition(_stateManager.State.PreviewMedia, value);
+            OnPropertyChanged();
+        }
     }
 
     #region Media & Playback Actions
@@ -513,6 +530,21 @@ public class MainViewModel : ViewModelBase
         StatusNotification = newStandby ? "STANDBY screen active on projector." : "Standby dismissed. Live broadcast active.";
     }
 
+    /// <summary>
+    /// Emergency standby: always cuts TO standby, never away from it (Esc key).
+    /// </summary>
+    public void EmergencyStandby()
+    {
+        if (!_stateManager.State.IsStandbyActive)
+        {
+            ToggleStandby();
+        }
+        else
+        {
+            StatusNotification = "EMERGENCY STANDBY: broadcast already on standby slate.";
+        }
+    }
+
     private void ToggleLiveIndicator()
     {
         bool newVisible = !_stateManager.State.IsLiveIndicatorVisible;
@@ -538,6 +570,41 @@ public class MainViewModel : ViewModelBase
             MediaItem = SelectedMedia
         });
         StatusNotification = $"Added '{SelectedMedia.Title}' to news rundown.";
+    }
+
+    /// <summary>
+    /// When the on-air video ends, advances to the next story in the rundown
+    /// and takes it live with its own assigned transition.
+    /// </summary>
+    private async Task AutoAdvanceRundownAsync()
+    {
+        var current = _stateManager.State.OnAirMedia;
+        if (current == null) return;
+
+        int currentIndex = -1;
+        for (int i = 0; i < RundownItems.Count; i++)
+        {
+            if (RundownItems[i].MediaItem?.Id == current.Id)
+            {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        var next = (currentIndex >= 0 && currentIndex + 1 < RundownItems.Count)
+            ? RundownItems[currentIndex + 1].MediaItem
+            : null;
+
+        if (next == null)
+        {
+            StatusNotification = "On-air media ended. No further rundown item prepared — standby is available.";
+            return;
+        }
+
+        StatusNotification = $"MEDIA ENDED: auto-advancing rundown to '{next.Title}'.";
+        PreparePreview(next);
+        await WaitScenePreparedSafeAsync(5000);
+        TakeLive();
     }
 
     private void RemoveFromRundown()
@@ -806,10 +873,12 @@ public class MainViewModel : ViewModelBase
                 // Keep the authoritative playback flag in sync (Space toggles from this)
                 _stateManager.State.IsPlaying = !args.Paused;
 
+                // Duration always refreshes, even mid-scrub, so the slider range stays valid
+                PlaybackDuration = args.Duration;
+
                 if (SuppressPlaybackTimeUpdates) return;
 
                 PlaybackCurrentTime = args.CurrentTime;
-                PlaybackDuration = args.Duration;
 
                 var cur = TimeSpan.FromSeconds(args.CurrentTime);
                 var dur = TimeSpan.FromSeconds(args.Duration);
@@ -847,6 +916,19 @@ public class MainViewModel : ViewModelBase
                 _scenePreparedTcs = null;
                 tcs?.TrySetResult(true);
             });
+        };
+
+        _broadcastWindow.PlaybackError += (s, message) =>
+        {
+            _dispatcher.Invoke(() =>
+            {
+                StatusNotification = $"PLAYBACK ERROR (projector): {message}. Check the media file path in the library.";
+            });
+        };
+
+        _broadcastWindow.MediaEnded += (s, args) =>
+        {
+            _dispatcher.Invoke(() => { _ = AutoAdvanceRundownAsync(); });
         };
 
         _broadcastWindow.Closed += (s, e) =>

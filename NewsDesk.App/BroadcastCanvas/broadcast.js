@@ -109,6 +109,7 @@
     }
 
     // Prepare content in standby slot without touching active broadcast
+    let scenePreparedTimer = null;
     function loadScene(data) {
         const standbyVid = getStandbyVideo();
         const standbyGraph = getStandbyGraphic();
@@ -121,6 +122,13 @@
             sendHostMessage('scene_prepared', { slot: standbySlot });
         };
 
+        // A superseded loadScene must not let its fallback timer fire later and
+        // prematurely confirm the NEW load as ready
+        if (scenePreparedTimer !== null) {
+            clearTimeout(scenePreparedTimer);
+            scenePreparedTimer = null;
+        }
+
         if (data.type === 'video' && data.mediaUrl) {
             standbyVid.style.display = 'block';
             standbyGraph.style.display = 'none';
@@ -129,7 +137,7 @@
             // never takes live a scene that would flash black mid-load.
             standbyVid.addEventListener('loadeddata', markPrepared, { once: true });
             standbyVid.addEventListener('error', markPrepared, { once: true });
-            setTimeout(markPrepared, 4000);
+            scenePreparedTimer = setTimeout(markPrepared, 4000);
 
             standbyVid.src = data.mediaUrl;
             standbyVid.volume = 0; // muted while standing by
@@ -366,17 +374,24 @@
         'zoom': 'anim-zoom-in'
     };
 
+    // Cleanup handle so a rapid second test click cancels the first test's cleanup
+    let testCleanupTimer = null;
+
     function testTransition(data) {
         if (!testOverlay) return;
         const transition = (data && data.transition) ? String(data.transition).toLowerCase() : 'fade';
 
+        if (testCleanupTimer !== null) {
+            clearTimeout(testCleanupTimer);
+            testCleanupTimer = null;
+        }
         cleanAnimationClasses(testOverlay);
         testOverlay.style.opacity = '';
 
         if (transition === 'cut') {
             // Instantaneous flash (0 ms rule: no animation)
             testOverlay.style.opacity = '1';
-            setTimeout(() => { testOverlay.style.opacity = ''; }, 60);
+            testCleanupTimer = setTimeout(() => { testOverlay.style.opacity = ''; }, 60);
             return;
         }
 
@@ -386,7 +401,7 @@
         if (transition === 'wipe') testOverlay.style.opacity = '1';
         testOverlay.classList.add(inClass);
 
-        setTimeout(() => {
+        testCleanupTimer = setTimeout(() => {
             cleanAnimationClasses(testOverlay);
             testOverlay.style.opacity = '';
         }, 500);

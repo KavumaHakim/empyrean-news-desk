@@ -376,7 +376,7 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
                             <TextBlock Text="TRANSITION: " FontWeight="Bold" FontSize="11" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                             <ComboBox ItemsSource="{Binding AvailableTransitions}" 
-                                      SelectedItem="{Binding PreviewMedia.AssignedTransition, Mode=TwoWay}"
+                                      SelectedItem="{Binding PreviewTransition, Mode=TwoWay}"
                                       Width="120"/>
                         </StackPanel>
 
