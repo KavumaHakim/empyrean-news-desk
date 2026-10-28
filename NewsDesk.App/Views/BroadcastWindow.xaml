@@ -1,0 +1,19 @@
+<Window x:Class="NewsDesk.App.Views.BroadcastWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="NEWS DESK - Broadcast Output"
+        Height="720" Width="1280"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Background="Black"
+        ShowInTaskbar="False"
+        Topmost="True"
+        Cursor="None">
+    <Grid Background="Black">
+        <wv2:WebView2 x:Name="WebViewBroadcast"
+                       HorizontalAlignment="Stretch"
+                       VerticalAlignment="Stretch"
+                       DefaultBackgroundColor="Black" />
+    </Grid>
+</Window>

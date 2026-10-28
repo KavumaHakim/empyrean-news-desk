@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEWS DESK Broadcast Output</title>
+    <link rel="stylesheet" href="broadcast.css">
+</head>
+<body oncontextmenu="return false;">
+    <div id="broadcast-container">
+        
+        <!-- SCENES LAYER (DUAL-BUFFERED FOR 500ms HARDWARE TRANSITIONS) -->
+        <div id="layer-scenes">
+            <!-- Scene A -->
+            <div id="scene-a" class="scene-slot is-active">
+                <video id="video-a" class="scene-video" preload="auto" playsinline></video>
+                <div id="graphic-a" class="scene-graphic">
+                    <div class="fullscreen-slide">
+                        <div class="slide-badge">NEWS DESK BROADCAST</div>
+                        <h1 class="slide-title">NEWS DESK LIVE</h1>
+                        <p class="slide-subtitle">Broadcast Output Ready</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scene B -->
+            <div id="scene-b" class="scene-slot is-standby">
+                <video id="video-b" class="scene-video" preload="auto" playsinline></video>
+                <div id="graphic-b" class="scene-graphic"></div>
+            </div>
+        </div>
+
+        <!-- OVERLAY LAYER (STABLE & NEVER DISRUPTED BY SCENE TRANSITIONS) -->
+        <div id="layer-overlays">
+            <!-- Top-Right LIVE Indicator -->
+            <div id="live-indicator" class="live-badge">
+                <span class="live-dot"></span>
+                <span class="live-text">LIVE</span>
+            </div>
+
+            <!-- Lower-Third Headline / Graphic Overlay -->
+            <div id="lower-third" class="lower-third-container hidden">
+                <div class="lt-header-row">
+                    <span id="lt-category" class="lt-category-badge">NATIONAL NEWS</span>
+                    <span id="lt-breaking-tag" class="lt-breaking-badge hidden">BREAKING NEWS</span>
+                    <span id="lt-location" class="lt-location-badge hidden">WASHINGTON, D.C.</span>
+                </div>
+                <div class="lt-body-row">
+                    <h2 id="lt-title" class="lt-title">MAIN HEADLINE TEXT</h2>
+                    <p id="lt-subtitle" class="lt-subtitle">Supporting story summary and detail</p>
+                </div>
+                <div id="lt-reporter-row" class="lt-reporter-row hidden">
+                    <span class="reporter-icon">🎤</span>
+                    <span id="lt-reporter-name" class="reporter-name">Sarah Jenkins</span>
+                    <span id="lt-reporter-title" class="reporter-title">Senior Correspondent</span>
+                </div>
+            </div>
+
+            <!-- Bottom Moving News Ticker -->
+            <div id="news-ticker" class="ticker-wrapper">
+                <div id="ticker-header" class="ticker-badge">
+                    <span id="ticker-badge-text">HEADLINES</span>
+                </div>
+                <div class="ticker-track-container">
+                    <div id="ticker-track" class="ticker-track">
+                        <!-- Ticker contents injected via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRANSITION TEST OVERLAY (rehearses effects without disturbing on-air scenes) -->
+        <div id="test-overlay" class="test-overlay">TRANSITION TEST</div>
+
+        <!-- STANDBY / SLATE LAYER -->
+        <div id="layer-standby" class="standby-layer">
+            <div class="standby-content">
+                <div class="standby-logo">
+                    <span class="logo-accent">NEWS</span>DESK
+                </div>
+                <div class="standby-status-pill">OFF AIR / BROADCAST STANDBY</div>
+                <div class="standby-clock" id="standby-clock">00:00:00</div>
+                <div class="standby-subtext">HDMI OUTPUT ACTIVE • SYSTEM READY</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="broadcast.js"></script>
+</body>
+</html>

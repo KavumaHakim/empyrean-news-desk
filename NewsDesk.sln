@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewsDesk.App", "NewsDesk.App\NewsDesk.App.csproj", "{B00F2117-8AC7-4100-B404-83D2FC56F035}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewsDesk.Core", "NewsDesk.Core\NewsDesk.Core.csproj", "{97F5566E-2648-4009-A362-5AEF386E0630}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewsDesk.Tests", "NewsDesk.Tests\NewsDesk.Tests.csproj", "{24A4E171-ECC3-434C-A7BF-C5C05601E20D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B00F2117-8AC7-4100-B404-83D2FC56F035}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B00F2117-8AC7-4100-B404-83D2FC56F035}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B00F2117-8AC7-4100-B404-83D2FC56F035}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B00F2117-8AC7-4100-B404-83D2FC56F035}.Release|Any CPU.Build.0 = Release|Any CPU
+		{97F5566E-2648-4009-A362-5AEF386E0630}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{97F5566E-2648-4009-A362-5AEF386E0630}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{97F5566E-2648-4009-A362-5AEF386E0630}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{97F5566E-2648-4009-A362-5AEF386E0630}.Release|Any CPU.Build.0 = Release|Any CPU
+		{24A4E171-ECC3-434C-A7BF-C5C05601E20D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{24A4E171-ECC3-434C-A7BF-C5C05601E20D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{24A4E171-ECC3-434C-A7BF-C5C05601E20D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{24A4E171-ECC3-434C-A7BF-C5C05601E20D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
