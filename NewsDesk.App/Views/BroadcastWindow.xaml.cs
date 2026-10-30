@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Input;
 using Microsoft.Web.WebView2.Core;
 using NewsDesk.App.Services;
 using NewsDesk.Core.Models;
@@ -19,6 +20,27 @@ public partial class BroadcastWindow : Window
     public event EventHandler? CanvasReady;
     public event EventHandler? MediaEnded;
 
+    /// <summary>Intro's closing fade has started; payload is the post-intro action.</summary>
+    public event EventHandler<string>? IntroEnded;
+    public event EventHandler<string>? IntroError;
+
+    /// <summary>The voice-over finished (track ended, failed, or standby cut it).</summary>
+    public event EventHandler? VoiceOverEnded;
+
+    /// <summary>A voice-over or speaker-window problem; never affects the cued scene.</summary>
+    public event EventHandler<string>? OverlayError;
+
+    /// <summary>
+    /// Operator shortcut pressed while this window had focus (forwarded to the control room).
+    /// </summary>
+    public event EventHandler<Key>? ShortcutKeyPressed;
+
+    /// <summary>
+    /// True when the output sits on the operator's primary screen (no projector):
+    /// the window is then neither topmost nor cursor-less, so the console stays reachable.
+    /// </summary>
+    public bool IsOnOperatorScreen { get; private set; }
+
     public bool IsCanvasReady => _isInitialized;
 
     public BroadcastWindow(string serverBaseUrl, DisplayInfo? targetDisplay = null)
@@ -28,10 +50,26 @@ public partial class BroadcastWindow : Window
 
         ApplyDisplayPlacement(targetDisplay);
         Loaded += OnLoaded;
+
+        // WebView2 surfaces accelerator keys (Esc, F-keys) as WPF key events;
+        // other keys arrive from the canvas as "key" web messages.
+        PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key is Key.Escape or Key.F5 or Key.F6 or Key.F7 or Key.Space)
+            {
+                e.Handled = true;
+                if (!e.IsRepeat) ShortcutKeyPressed?.Invoke(this, e.Key);
+            }
+        };
     }
 
     public void ApplyDisplayPlacement(DisplayInfo? targetDisplay)
     {
+        IsOnOperatorScreen = targetDisplay == null || targetDisplay.IsPrimary;
+        Topmost = !IsOnOperatorScreen;
+        Cursor = IsOnOperatorScreen ? Cursors.Arrow : Cursors.None;
+        SendCommand("set_cursor_visible", IsOnOperatorScreen);
+
         if (targetDisplay != null)
         {
             WindowState = WindowState.Normal;
@@ -58,7 +96,10 @@ public partial class BroadcastWindow : Window
             var userDataFolder = Path.Combine(appData, "NewsDesk", "WebView2UserData");
             Directory.CreateDirectory(userDataFolder);
 
-            var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+            // Commands arrive from the host, never from a click on the projector, so
+            // media (and the WebAudio intro theme) must be allowed to start with sound.
+            var options = new CoreWebView2EnvironmentOptions("--autoplay-policy=no-user-gesture-required");
+            var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
             await WebViewBroadcast.EnsureCoreWebView2Async(env);
 
             WebViewBroadcast.CoreWebView2.Settings.AreDevToolsEnabled = false;
@@ -67,6 +108,17 @@ public partial class BroadcastWindow : Window
             WebViewBroadcast.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
 
             WebViewBroadcast.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+
+            // Speaker windows can show a webcam: allow the camera for our own
+            // loopback canvas only, without a prompt on the projector.
+            WebViewBroadcast.CoreWebView2.PermissionRequested += (s, args) =>
+            {
+                if (args.PermissionKind == CoreWebView2PermissionKind.Camera
+                    && args.Uri.StartsWith(_serverBaseUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    args.State = CoreWebView2PermissionState.Allow;
+                }
+            };
 
             WebViewBroadcast.Source = new Uri(new Uri(_serverBaseUrl), "index.html");
             _isInitialized = true;
@@ -90,7 +142,21 @@ public partial class BroadcastWindow : Window
 
             if (type == "ready")
             {
+                SendCommand("set_cursor_visible", IsOnOperatorScreen);
                 CanvasReady?.Invoke(this, EventArgs.Empty);
+            }
+            else if (type == "key" && root.TryGetProperty("data", out var keyProp))
+            {
+                Key? key = keyProp.GetProperty("key").GetString() switch
+                {
+                    "Escape" => Key.Escape,
+                    "F5" => Key.F5,
+                    "F6" => Key.F6,
+                    "F7" => Key.F7,
+                    " " => Key.Space,
+                    _ => null
+                };
+                if (key.HasValue) ShortcutKeyPressed?.Invoke(this, key.Value);
             }
             else if (type == "timeupdate" && root.TryGetProperty("data", out var dataProp))
             {
@@ -116,6 +182,34 @@ public partial class BroadcastWindow : Window
             {
                 MediaEnded?.Invoke(this, EventArgs.Empty);
             }
+            else if (type == "intro_ended")
+            {
+                string action = root.TryGetProperty("data", out var introProp)
+                    && introProp.TryGetProperty("postIntroAction", out var actionProp)
+                    ? (actionProp.GetString() ?? "standby")
+                    : "standby";
+                IntroEnded?.Invoke(this, action);
+            }
+            else if (type == "intro_error")
+            {
+                string message = root.TryGetProperty("data", out var introErr)
+                    && introErr.TryGetProperty("message", out var introMsg)
+                    ? (introMsg.GetString() ?? "Intro failed")
+                    : "Intro failed";
+                IntroError?.Invoke(this, message);
+            }
+            else if (type == "vo_ended")
+            {
+                VoiceOverEnded?.Invoke(this, EventArgs.Empty);
+            }
+            else if (type == "overlay_error")
+            {
+                string message = root.TryGetProperty("data", out var ovErr)
+                    && ovErr.TryGetProperty("message", out var ovMsg)
+                    ? (ovMsg.GetString() ?? "Overlay error")
+                    : "Overlay error";
+                OverlayError?.Invoke(this, message);
+            }
             else if (type == "error" && root.TryGetProperty("data", out var errProp))
             {
                 string message = errProp.TryGetProperty("message", out var msgProp)
@@ -137,16 +231,28 @@ public partial class BroadcastWindow : Window
 
     public void SendCommand(string command, object? data = null)
     {
-        if (WebViewBroadcast.CoreWebView2 == null) return;
-
-        var payload = new BroadcastCommand
+        try
         {
-            Command = command,
-            Data = data
-        };
+            if (WebViewBroadcast.CoreWebView2 == null) return;
 
-        var json = JsonSerializer.Serialize(payload, _jsonOptions);
-        WebViewBroadcast.CoreWebView2.PostWebMessageAsJson(json);
+            var payload = new BroadcastCommand
+            {
+                Command = command,
+                Data = data
+            };
+
+            var json = JsonSerializer.Serialize(payload, _jsonOptions);
+            WebViewBroadcast.CoreWebView2.PostWebMessageAsJson(json);
+        }
+        catch (ObjectDisposedException)
+        {
+            // The projector may close between the readiness check and the post.
+            // Commands are best-effort and must not crash the operator console.
+        }
+        catch (InvalidOperationException)
+        {
+            // WebView2 can briefly reject messages while it is initializing or closing.
+        }
     }
 }
 

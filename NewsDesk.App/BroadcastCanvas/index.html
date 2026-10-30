@@ -3,23 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEWS DESK Broadcast Output</title>
+    <title>EMPYREAN NEWS — The Farewell Edition</title>
     <link rel="stylesheet" href="broadcast.css">
 </head>
 <body oncontextmenu="return false;">
+    <!-- Fixed 1920x1080 stage, scaled to fit the projector by broadcast.js -->
     <div id="broadcast-container">
-        
-        <!-- SCENES LAYER (DUAL-BUFFERED FOR 500ms HARDWARE TRANSITIONS) -->
+
+        <!-- SCENES LAYER (DUAL-BUFFERED FOR 500MS HARDWARE TRANSITIONS) -->
         <div id="layer-scenes">
             <!-- Scene A -->
             <div id="scene-a" class="scene-slot is-active">
                 <video id="video-a" class="scene-video" preload="auto" playsinline></video>
-                <div id="graphic-a" class="scene-graphic">
-                    <div class="fullscreen-slide">
-                        <div class="slide-badge">NEWS DESK BROADCAST</div>
-                        <h1 class="slide-title">NEWS DESK LIVE</h1>
-                        <p class="slide-subtitle">Broadcast Output Ready</p>
-                    </div>
+                <div id="graphic-a" class="scene-graphic"></div>
+                <img id="image-a" class="scene-image" alt="">
+                <!-- Name strap for a person in the frame (travels with the scene) -->
+                <div id="caption-a" class="scene-caption hidden">
+                    <span class="caption-name"></span>
+                    <span class="caption-title"></span>
                 </div>
             </div>
 
@@ -27,39 +28,88 @@
             <div id="scene-b" class="scene-slot is-standby">
                 <video id="video-b" class="scene-video" preload="auto" playsinline></video>
                 <div id="graphic-b" class="scene-graphic"></div>
+                <img id="image-b" class="scene-image" alt="">
+                <!-- Name strap for a person in the frame (travels with the scene) -->
+                <div id="caption-b" class="scene-caption hidden">
+                    <span class="caption-name"></span>
+                    <span class="caption-title"></span>
+                </div>
             </div>
         </div>
 
-        <!-- OVERLAY LAYER (STABLE & NEVER DISRUPTED BY SCENE TRANSITIONS) -->
+        <!-- SPEAKER WINDOWS: two floating boxes over the program (video, picture or camera) -->
+        <div id="layer-speakers" class="speakers-layer hidden" data-layout="side_by_side">
+            <div class="speakers-backdrop"></div>
+            <div class="speakers-row">
+                <div id="speaker-1" class="speaker-box hidden">
+                    <video id="speaker-video-1" class="speaker-media" playsinline></video>
+                    <img id="speaker-img-1" class="speaker-media" alt="">
+                    <div class="speaker-caption">
+                        <span id="speaker-name-1" class="speaker-name"></span>
+                        <span id="speaker-title-1" class="speaker-title"></span>
+                    </div>
+                </div>
+                <div id="speaker-2" class="speaker-box hidden">
+                    <video id="speaker-video-2" class="speaker-media" playsinline></video>
+                    <img id="speaker-img-2" class="speaker-media" alt="">
+                    <div class="speaker-caption">
+                        <span id="speaker-name-2" class="speaker-name"></span>
+                        <span id="speaker-title-2" class="speaker-title"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FIXED OVERLAY LAYER (STABLE THROUGH EVERY SCENE TRANSITION) -->
         <div id="layer-overlays">
-            <!-- Top-Right LIVE Indicator -->
+
+            <!-- Compact station bug over video (the full brand lives on graphic slides) -->
+            <div id="station-chip" class="station-chip">
+                <span class="brand-e">E</span>
+                <span class="brand-name">EMPYREAN NEWS</span>
+                <span class="station-time" id="onair-clock">00:00</span>
+            </div>
+
+            <!-- Fixed LIVE indicator (top-right) -->
             <div id="live-indicator" class="live-badge">
                 <span class="live-dot"></span>
                 <span class="live-text">LIVE</span>
             </div>
 
-            <!-- Lower-Third Headline / Graphic Overlay -->
-            <div id="lower-third" class="lower-third-container hidden">
+            <!-- Voice-over tag: names the narrator while a VO plays over the program -->
+            <div id="vo-tag" class="vo-tag hidden">
+                <span class="vo-mic"><span></span><span></span><span></span></span>
+                <span class="vo-label">VOICE OVER</span>
+                <span id="vo-name" class="vo-name"></span>
+                <span id="vo-title" class="vo-title"></span>
+            </div>
+            <audio id="vo-audio" preload="auto"></audio>
+
+            <!-- Lower third: red title strap over a white story strap -->
+            <div id="lower-third" class="lower-third-container hidden lt--headline">
                 <div class="lt-header-row">
                     <span id="lt-category" class="lt-category-badge">NATIONAL NEWS</span>
                     <span id="lt-breaking-tag" class="lt-breaking-badge hidden">BREAKING NEWS</span>
-                    <span id="lt-location" class="lt-location-badge hidden">WASHINGTON, D.C.</span>
+                    <span id="lt-location" class="lt-location-badge hidden">LONDON</span>
                 </div>
                 <div class="lt-body-row">
-                    <h2 id="lt-title" class="lt-title">MAIN HEADLINE TEXT</h2>
-                    <p id="lt-subtitle" class="lt-subtitle">Supporting story summary and detail</p>
-                </div>
-                <div id="lt-reporter-row" class="lt-reporter-row hidden">
-                    <span class="reporter-icon">🎤</span>
-                    <span id="lt-reporter-name" class="reporter-name">Sarah Jenkins</span>
-                    <span id="lt-reporter-title" class="reporter-title">Senior Correspondent</span>
+                    <h2 id="lt-title" class="lt-title">FAREWELL SPECIAL</h2>
+                    <div class="lt-strap">
+                        <p id="lt-subtitle" class="lt-subtitle">Supporting story summary and detail</p>
+                        <div id="lt-reporter-row" class="lt-reporter-row hidden">
+                            <span class="reporter-mark"></span>
+                            <span id="lt-reporter-name" class="reporter-name">Sarah Jenkins</span>
+                            <span class="reporter-dot">&#9679;</span>
+                            <span id="lt-reporter-title" class="reporter-title">Senior Correspondent</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Bottom Moving News Ticker -->
+            <!-- Scrolling news ticker (bottom ribbon, continuously looped) -->
             <div id="news-ticker" class="ticker-wrapper">
                 <div id="ticker-header" class="ticker-badge">
-                    <span id="ticker-badge-text">HEADLINES</span>
+                    <span id="ticker-badge-text">EMPYREAN NEWS</span>
                 </div>
                 <div class="ticker-track-container">
                     <div id="ticker-track" class="ticker-track">
@@ -69,19 +119,67 @@
             </div>
         </div>
 
+        <!-- INTRO: built-in title sequence, or an operator-supplied theme video -->
+        <div id="layer-intro" class="intro-layer hidden" aria-hidden="true">
+            <video id="intro-video" class="intro-video" preload="auto" playsinline></video>
+            <audio id="intro-audio" preload="auto"></audio>
+            <div id="intro-motion" class="intro-motion">
+                <div class="intro-dark"></div>
+                <div class="intro-streak intro-streak-1"></div>
+                <div class="intro-streak intro-streak-2"></div>
+                <div class="intro-streak intro-streak-3"></div>
+                <div class="intro-pips">
+                    <span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="intro-light studio-bg"></div>
+                <div class="intro-globe studio-globe"></div>
+                <div class="intro-globe-final studio-globe"></div>
+                <div class="intro-orbit intro-orbit-1"></div>
+                <div class="intro-orbit intro-orbit-2"></div>
+                <div class="intro-flash"></div>
+                <div class="intro-brand brand">
+                    <div class="brand-row">
+                        <span class="brand-e">E</span>
+                        <span class="brand-name">EMPYREAN NEWS</span>
+                    </div>
+                    <div class="brand-edition">THE FAREWELL EDITION</div>
+                </div>
+                <div class="intro-copy">
+                    <div class="slide-badge">SPECIAL BROADCAST</div>
+                    <div class="slide-title">ONE CLASS.<br>ONE FAREWELL.</div>
+                </div>
+                <div class="intro-floor studio-floor"></div>
+            </div>
+        </div>
+
         <!-- TRANSITION TEST OVERLAY (rehearses effects without disturbing on-air scenes) -->
         <div id="test-overlay" class="test-overlay">TRANSITION TEST</div>
 
-        <!-- STANDBY / SLATE LAYER -->
+        <!-- STANDBY / OFF-AIR SLATE -->
         <div id="layer-standby" class="standby-layer">
-            <div class="standby-content">
-                <div class="standby-logo">
-                    <span class="logo-accent">NEWS</span>DESK
+            <div class="studio-bg"></div>
+            <div class="studio-globe"></div>
+            <div class="studio-shine"></div>
+            <div class="brand">
+                <div class="brand-row">
+                    <span class="brand-e">E</span>
+                    <span class="brand-name">EMPYREAN NEWS</span>
                 </div>
-                <div class="standby-status-pill">OFF AIR / BROADCAST STANDBY</div>
-                <div class="standby-clock" id="standby-clock">00:00:00</div>
-                <div class="standby-subtext">HDMI OUTPUT ACTIVE • SYSTEM READY</div>
+                <div class="brand-edition">THE FAREWELL EDITION</div>
             </div>
+            <div class="slide-copy standby-copy">
+                <div class="slide-badge">PLEASE STAND BY</div>
+                <div class="slide-title">THE BROADCAST<br>BEGINS SHORTLY</div>
+                <div class="slide-subtitle">One class. Countless memories.<br>One unforgettable farewell.</div>
+            </div>
+            <div class="standby-strap">
+                <div class="standby-strap-title">COMING UP</div>
+                <div class="standby-strap-body">
+                    <span>EMPYREAN NEWS — LIVE COVERAGE OF THE FAREWELL CELEBRATION</span>
+                    <span class="standby-clock" id="standby-clock">00:00:00</span>
+                </div>
+            </div>
+            <div class="studio-floor"></div>
         </div>
 
     </div>

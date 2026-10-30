@@ -38,6 +38,20 @@ public class MediaItem
     public bool IsAvailable { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// Name strap shown on the scene when the frame contains a person
+    /// (e.g. "Jane Doe" / "Head Prefect"). Empty name = no caption.
+    /// </summary>
+    public string CaptionName { get; set; } = string.Empty;
+    public string CaptionTitle { get; set; } = string.Empty;
+
+    public static readonly string[] ImageExtensions = [".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp"];
+
+    /// <summary>Still pictures are shown as full-frame image scenes instead of video.</summary>
+    public bool IsImage => ImageExtensions.Contains(Path.GetExtension(FilePath).ToLowerInvariant());
+
+    public string KindLabel => IsImage ? "PICTURE" : "VIDEO";
+
     public string FormattedDuration
     {
         get

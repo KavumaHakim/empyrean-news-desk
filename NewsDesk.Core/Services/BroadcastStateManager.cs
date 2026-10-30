@@ -44,7 +44,9 @@ public class BroadcastStateManager
             OperatorNotification?.Invoke(this, $"Warning: File not found for media '{media.Title}' at '{media.FilePath}'.");
         }
 
+        // The canvas has a single standby slot: cueing media replaces any cued graphic
         State.PreviewMedia = media;
+        State.PreviewGraphic = null;
         State.ActiveTransition = media.AssignedTransition;
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -54,7 +56,11 @@ public class BroadcastStateManager
     /// </summary>
     public void SelectPreviewGraphic(HeadlineDraft draft)
     {
+        if (draft == null) return;
+
+        // The canvas has a single standby slot: cueing a graphic replaces any cued media
         State.PreviewGraphic = draft;
+        State.PreviewMedia = null;
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -88,7 +94,14 @@ public class BroadcastStateManager
         if (State.PreviewMedia != null)
         {
             State.OnAirMedia = State.PreviewMedia;
+            State.OnAirGraphic = null;
             State.ActiveTransition = State.PreviewMedia.AssignedTransition;
+        }
+        else
+        {
+            // A graphic slide replaces the on-air video entirely
+            State.OnAirGraphic = State.PreviewGraphic;
+            State.OnAirMedia = null;
         }
 
         StateChanged?.Invoke(this, EventArgs.Empty);
@@ -157,7 +170,38 @@ public class BroadcastStateManager
         {
             State.IsLiveOnAir = false;
             State.IsTransitioning = false;
+            State.IsIntroActive = false;
+            State.IsVoiceOverActive = false;
         }
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetIntroActive(bool active)
+    {
+        State.IsIntroActive = active;
+        if (active)
+        {
+            State.IsStandbyActive = false;
+            State.IsLiveOnAir = true;
+        }
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetVoiceOverActive(bool active)
+    {
+        State.IsVoiceOverActive = active;
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetSpeakersLive(bool live)
+    {
+        State.AreSpeakersLive = live;
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetSceneCaptionVisible(bool visible)
+    {
+        State.IsSceneCaptionVisible = visible;
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 

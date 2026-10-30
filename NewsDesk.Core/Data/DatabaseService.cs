@@ -114,7 +114,30 @@ public class DatabaseService : IDisposable
         ";
         cmd.ExecuteNonQuery();
 
+        MigrateSchema(conn);
         SeedDefaults(conn);
+    }
+
+    /// <summary>
+    /// Adds columns introduced after the first release to databases created by older builds.
+    /// </summary>
+    private static void MigrateSchema(SqliteConnection conn)
+    {
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var info = conn.CreateCommand())
+        {
+            info.CommandText = "PRAGMA table_info(MediaItems);";
+            using var reader = info.ExecuteReader();
+            while (reader.Read()) existing.Add(reader.GetString(1));
+        }
+
+        foreach (var column in new[] { "CaptionName", "CaptionTitle" })
+        {
+            if (existing.Contains(column)) continue;
+            using var alter = conn.CreateCommand();
+            alter.CommandText = $"ALTER TABLE MediaItems ADD COLUMN {column} TEXT NOT NULL DEFAULT '';";
+            alter.ExecuteNonQuery();
+        }
     }
 
     private void SeedDefaults(SqliteConnection conn)
@@ -129,13 +152,57 @@ public class DatabaseService : IDisposable
                 using var insertCmd = conn.CreateCommand();
                 insertCmd.CommandText = @"
                     INSERT INTO TickerItems (Text, Category, OrderIndex, IsActive) VALUES
-                    ('WELCOME TO NEWS DESK — LIVE BROADCAST CONTROL SYSTEM OPERATIONAL', 'NEWS DESK', 0, 1),
-                    ('PROJECTOR EXTENDED DISPLAY READY — HDMI 1080P/4K OUTPUT ACTIVE', 'SYSTEM', 1, 1),
-                    ('MANUAL BROADCASTING MODE ENGAGED — READY FOR OPERATOR SELECTION', 'ON AIR', 2, 1),
-                    ('MARKETS UPDATE: DOW JONES RISES 140 POINTS AS TECH RALLIES', 'BUSINESS', 3, 1),
-                    ('WEATHER FORECAST: MILD CONDITIONS ACROSS METROPOLITAN REGION', 'WEATHER', 4, 1);
+                    ('Friendships for life', '', 0, 1),
+                    ('From classrooms to the future', '', 1, 1),
+                    ('The best (and funniest) moments', '', 2, 1),
+                    ('One class. Always.', '', 3, 1),
+                    ('Valedictorian address scheduled for 20:00 — audience taking seats', 'CAMPUS', 4, 1);
                 ";
                 insertCmd.ExecuteNonQuery();
+            }
+        }
+
+        // Seed Sample Media if library empty
+        using (var checkCmd = conn.CreateCommand())
+        {
+            checkCmd.CommandText = "SELECT COUNT(*) FROM MediaItems;";
+            var count = (long)(checkCmd.ExecuteScalar() ?? 0);
+            if (count == 0)
+            {
+                var candidates = new[]
+                {
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleMedia"),
+                    Path.Combine(Directory.GetCurrentDirectory(), "SampleMedia"),
+                    @"c:\Users\SHAMI\HAKIM\NEWS APP\SampleMedia"
+                };
+                string? foundDir = candidates.FirstOrDefault(Directory.Exists);
+                if (foundDir != null)
+                {
+                    var file1 = Path.Combine(foundDir, "Sample_News_Report.mp4");
+                    var file2 = Path.Combine(foundDir, "Sample_Breaking_News.mp4");
+                    if (File.Exists(file1))
+                    {
+                        using var insertCmd = conn.CreateCommand();
+                        insertCmd.CommandText = @"
+                            INSERT INTO MediaItems (Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt)
+                            VALUES ('Special Report: Economic Outlook', $f1, 15, 'National News', 1, 'Sample broadcast report', 1, $now);
+                        ";
+                        insertCmd.Parameters.AddWithValue("$f1", file1);
+                        insertCmd.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("o"));
+                        insertCmd.ExecuteNonQuery();
+                    }
+                    if (File.Exists(file2))
+                    {
+                        using var insertCmd = conn.CreateCommand();
+                        insertCmd.CommandText = @"
+                            INSERT INTO MediaItems (Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt)
+                            VALUES ('Breaking News: Live Dispatch', $f2, 15, 'Breaking News', 0, 'Sample breaking news video', 1, $now);
+                        ";
+                        insertCmd.Parameters.AddWithValue("$f2", file2);
+                        insertCmd.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("o"));
+                        insertCmd.ExecuteNonQuery();
+                    }
+                }
             }
         }
 
@@ -149,9 +216,11 @@ public class DatabaseService : IDisposable
                 using var insertCmd = conn.CreateCommand();
                 insertCmd.CommandText = @"
                     INSERT INTO HeadlineDrafts (Title, Subtitle, Category, Location, ReporterName, ReporterTitle, TemplateType, BackgroundStyle, IsBreaking, CreatedAt) VALUES
-                    ('SPECIAL REPORT: REGIONAL ECONOMIC OUTLOOK', 'Analysts project sustained GDP expansion through Q4', 'Special Reports', 'CAPITAL CITY', 'Sarah Jenkins', 'Senior Correspondent', 0, 'navy', 0, $now),
-                    ('BREAKING: EMERGENCY DECLARATION ISSUED', 'Civil protection agencies mobilize resources along coast', 'Breaking News', 'COASTAL DISTRICT', 'Marcus Vance', 'Chief Field Reporter', 1, 'breaking', 1, $now),
-                    ('IN-DEPTH INTERVIEW: TECH SUMMIT 2026', 'Artificial intelligence and high-throughput data processing', 'Business', 'STUDIO A', 'Dr. Elena Rostova', 'AI Systems Director', 7, 'slate', 0, $now);
+                    ('BREAKING: FINAL EXAMS OFFICIALLY CONCLUDED', 'Students celebrate completion of senior academic milestones', 'Breaking News', 'EXAM HALLS', 'Marcus Vance', 'Chief Field Reporter', 1, 'breaking', 1, $now),
+                    ('TRIBUTE: THE TEACHERS WHO GUIDED THE JOURNEY', 'Faculty moments and heartfelt farewell dedications', 'Education', 'FACULTY LOUNGE', 'Sarah Jenkins', 'Senior Correspondent', 0, 'navy', 0, $now),
+                    ('INTERVIEW: HEAD PREFECT ON THE CLASS LEGACY', 'Reflections on leadership, solidarity, and the road ahead', 'Interview', 'CAMPUS PLAZA', 'Elena Rostova', 'Guest Speaker', 7, 'slate', 0, $now),
+                    ('FAREWELL SPECIAL', 'Empyrean class celebrates the end of an incredible journey', 'Special Report', '', '', '', 0, 'navy', 0, $now),
+                    ('AN ERA COMES TO AN END', 'One class. Countless memories. One unforgettable farewell.', 'Special Report', 'MAIN AUDITORIUM', 'Senior Bureau', 'Farewell Correspondent', 0, 'navy', 0, $now);
                 ";
                 insertCmd.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("o"));
                 insertCmd.ExecuteNonQuery();
@@ -169,6 +238,13 @@ public class DatabaseService : IDisposable
                 insertCmd.CommandText = "INSERT INTO Playlists (Name, CreatedAt) VALUES ('Default News Rundown', $now);";
                 insertCmd.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("o"));
                 insertCmd.ExecuteNonQuery();
+
+                using var pItemsCmd = conn.CreateCommand();
+                pItemsCmd.CommandText = @"
+                    INSERT INTO PlaylistItems (PlaylistId, MediaItemId, OrderIndex)
+                    SELECT 1, Id, (Id - 1) FROM MediaItems ORDER BY Id ASC;
+                ";
+                pItemsCmd.ExecuteNonQuery();
             }
         }
     }
@@ -180,7 +256,7 @@ public class DatabaseService : IDisposable
         var list = new List<MediaItem>();
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT Id, Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt FROM MediaItems ORDER BY Id DESC;";
+        cmd.CommandText = "SELECT Id, Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt, CaptionName, CaptionTitle FROM MediaItems ORDER BY Id DESC;";
 
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
@@ -198,7 +274,9 @@ public class DatabaseService : IDisposable
                 AssignedTransition = (TransitionType)reader.GetInt32(5),
                 Description = reader.IsDBNull(6) ? "" : reader.GetString(6),
                 IsAvailable = isAvailable,
-                CreatedAt = DateTime.Parse(reader.GetString(8))
+                CreatedAt = DateTime.Parse(reader.GetString(8)),
+                CaptionName = reader.IsDBNull(9) ? "" : reader.GetString(9),
+                CaptionTitle = reader.IsDBNull(10) ? "" : reader.GetString(10)
             });
         }
         return list;
@@ -208,7 +286,7 @@ public class DatabaseService : IDisposable
     {
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT Id, Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt FROM MediaItems WHERE Id = $id;";
+        cmd.CommandText = "SELECT Id, Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt, CaptionName, CaptionTitle FROM MediaItems WHERE Id = $id;";
         cmd.Parameters.AddWithValue("$id", id);
 
         using var reader = cmd.ExecuteReader();
@@ -225,7 +303,9 @@ public class DatabaseService : IDisposable
                 AssignedTransition = (TransitionType)reader.GetInt32(5),
                 Description = reader.IsDBNull(6) ? "" : reader.GetString(6),
                 IsAvailable = File.Exists(filePath),
-                CreatedAt = DateTime.Parse(reader.GetString(8))
+                CreatedAt = DateTime.Parse(reader.GetString(8)),
+                CaptionName = reader.IsDBNull(9) ? "" : reader.GetString(9),
+                CaptionTitle = reader.IsDBNull(10) ? "" : reader.GetString(10)
             };
         }
         return null;
@@ -236,8 +316,8 @@ public class DatabaseService : IDisposable
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
-            INSERT INTO MediaItems (Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt)
-            VALUES ($title, $filePath, $duration, $category, $transition, $description, $isAvailable, $createdAt);
+            INSERT INTO MediaItems (Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt, CaptionName, CaptionTitle)
+            VALUES ($title, $filePath, $duration, $category, $transition, $description, $isAvailable, $createdAt, $captionName, $captionTitle);
             SELECT last_insert_rowid();
         ";
         cmd.Parameters.AddWithValue("$title", item.Title);
@@ -248,6 +328,8 @@ public class DatabaseService : IDisposable
         cmd.Parameters.AddWithValue("$description", item.Description);
         cmd.Parameters.AddWithValue("$isAvailable", item.IsAvailable ? 1 : 0);
         cmd.Parameters.AddWithValue("$createdAt", item.CreatedAt.ToString("o"));
+        cmd.Parameters.AddWithValue("$captionName", item.CaptionName ?? string.Empty);
+        cmd.Parameters.AddWithValue("$captionTitle", item.CaptionTitle ?? string.Empty);
 
         var newId = Convert.ToInt32(cmd.ExecuteScalar());
         item.Id = newId;
@@ -266,7 +348,9 @@ public class DatabaseService : IDisposable
                 Category = $category,
                 AssignedTransition = $transition,
                 Description = $description,
-                IsAvailable = $isAvailable
+                IsAvailable = $isAvailable,
+                CaptionName = $captionName,
+                CaptionTitle = $captionTitle
             WHERE Id = $id;
         ";
         cmd.Parameters.AddWithValue("$id", item.Id);
@@ -277,6 +361,8 @@ public class DatabaseService : IDisposable
         cmd.Parameters.AddWithValue("$transition", (int)item.AssignedTransition);
         cmd.Parameters.AddWithValue("$description", item.Description);
         cmd.Parameters.AddWithValue("$isAvailable", item.IsAvailable ? 1 : 0);
+        cmd.Parameters.AddWithValue("$captionName", item.CaptionName ?? string.Empty);
+        cmd.Parameters.AddWithValue("$captionTitle", item.CaptionTitle ?? string.Empty);
         cmd.ExecuteNonQuery();
     }
 
@@ -588,6 +674,91 @@ public class DatabaseService : IDisposable
     #endregion
 
     #region Settings
+
+    public IntroConfig GetIntroConfig()
+    {
+        var config = new IntroConfig();
+        config.VideoPath = GetSetting("Intro_VideoPath", string.Empty) ?? string.Empty;
+        config.AudioPath = GetSetting("Intro_AudioPath", string.Empty) ?? string.Empty;
+        if (double.TryParse(GetSetting("Intro_Volume", "1.0"), out var vol))
+            config.Volume = vol;
+        if (bool.TryParse(GetSetting("Intro_UseBuiltInMotion", "True"), out var useBuiltIn))
+            config.UseBuiltInMotion = useBuiltIn;
+        config.PostIntroAction = GetSetting("Intro_PostIntroAction", "opening_headline") ?? "opening_headline";
+        return config;
+    }
+
+    public void SaveIntroConfig(IntroConfig config)
+    {
+        SetSetting("Intro_VideoPath", config.VideoPath ?? string.Empty);
+        SetSetting("Intro_AudioPath", config.AudioPath ?? string.Empty);
+        SetSetting("Intro_Volume", config.Volume.ToString("0.00"));
+        SetSetting("Intro_UseBuiltInMotion", config.UseBuiltInMotion.ToString());
+        SetSetting("Intro_PostIntroAction", config.PostIntroAction ?? "opening_headline");
+    }
+
+    public VoiceOverConfig GetVoiceOverConfig()
+    {
+        var config = new VoiceOverConfig
+        {
+            AudioPath = GetSetting("VO_AudioPath", string.Empty) ?? string.Empty,
+            Name = GetSetting("VO_Name", string.Empty) ?? string.Empty,
+            Designation = GetSetting("VO_Designation", string.Empty) ?? string.Empty
+        };
+        if (double.TryParse(GetSetting("VO_Volume", "1.0"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var vol))
+            config.Volume = vol;
+        if (double.TryParse(GetSetting("VO_DuckLevel", "0.25"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var duck))
+            config.DuckLevel = duck;
+        if (bool.TryParse(GetSetting("VO_ShowTag", "True"), out var showTag))
+            config.ShowTag = showTag;
+        if (bool.TryParse(GetSetting("VO_Loop", "False"), out var loop))
+            config.Loop = loop;
+        return config;
+    }
+
+    public void SaveVoiceOverConfig(VoiceOverConfig config)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        SetSetting("VO_AudioPath", config.AudioPath ?? string.Empty);
+        SetSetting("VO_Name", config.Name ?? string.Empty);
+        SetSetting("VO_Designation", config.Designation ?? string.Empty);
+        SetSetting("VO_Volume", config.Volume.ToString("0.00", inv));
+        SetSetting("VO_DuckLevel", config.DuckLevel.ToString("0.00", inv));
+        SetSetting("VO_ShowTag", config.ShowTag.ToString());
+        SetSetting("VO_Loop", config.Loop.ToString());
+    }
+
+    /// <summary>Speaker box settings, keyed by box number (1 or 2).</summary>
+    public SpeakerBoxConfig GetSpeakerBoxConfig(int box)
+    {
+        var prefix = $"Speaker{box}_";
+        var config = new SpeakerBoxConfig
+        {
+            SourceKind = GetSetting(prefix + "SourceKind", "none") ?? "none",
+            SourcePath = GetSetting(prefix + "SourcePath", string.Empty) ?? string.Empty,
+            Name = GetSetting(prefix + "Name", string.Empty) ?? string.Empty,
+            Designation = GetSetting(prefix + "Designation", string.Empty) ?? string.Empty
+        };
+        if (int.TryParse(GetSetting(prefix + "CameraIndex", (box - 1).ToString()), out var cam))
+            config.CameraIndex = cam;
+        if (bool.TryParse(GetSetting(prefix + "PlayAudio", "True"), out var audio))
+            config.PlayAudio = audio;
+        if (bool.TryParse(GetSetting(prefix + "IsEnabled", "True"), out var enabled))
+            config.IsEnabled = enabled;
+        return config;
+    }
+
+    public void SaveSpeakerBoxConfig(int box, SpeakerBoxConfig config)
+    {
+        var prefix = $"Speaker{box}_";
+        SetSetting(prefix + "SourceKind", config.SourceKind ?? "none");
+        SetSetting(prefix + "SourcePath", config.SourcePath ?? string.Empty);
+        SetSetting(prefix + "Name", config.Name ?? string.Empty);
+        SetSetting(prefix + "Designation", config.Designation ?? string.Empty);
+        SetSetting(prefix + "CameraIndex", config.CameraIndex.ToString());
+        SetSetting(prefix + "PlayAudio", config.PlayAudio.ToString());
+        SetSetting(prefix + "IsEnabled", config.IsEnabled.ToString());
+    }
 
     public string? GetSetting(string key, string? defaultValue = null)
     {

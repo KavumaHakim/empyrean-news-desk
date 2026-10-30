@@ -2,114 +2,227 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:NewsDesk.Core.Models;assembly=NewsDesk.Core"
-        Title="NEWS DESK — Broadcast &amp; Projector Control Room"
-        Height="900" Width="1440"
-        MinHeight="750" MinWidth="1100"
-        Background="#070D1E"
-        WindowStartupLocation="CenterScreen">
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="EMPYREAN NEWS — Studio"
+        Height="920" Width="1500"
+        MinHeight="600" MinWidth="1000"
+        Background="#04070D"
+        WindowStartupLocation="CenterScreen"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True">
 
     <Window.Resources>
-        <!-- Dark Navy / Crimson Newsroom Theme Styles -->
-        <SolidColorBrush x:Key="NavyDark" Color="#070D1E"/>
-        <SolidColorBrush x:Key="NavyCard" Color="#0D1B2A"/>
-        <SolidColorBrush x:Key="NavySurface" Color="#132238"/>
-        <SolidColorBrush x:Key="NavyBorder" Color="#1E3250"/>
-        <SolidColorBrush x:Key="NavyLight" Color="#415A77"/>
-        <SolidColorBrush x:Key="AccentRed" Color="#D90429"/>
-        <SolidColorBrush x:Key="AccentRedHover" Color="#EF233C"/>
-        <SolidColorBrush x:Key="AccentCyan" Color="#48CAE4"/>
-        <SolidColorBrush x:Key="AccentGreen" Color="#2EC4B6"/>
-        <SolidColorBrush x:Key="TextLight" Color="#F8F9FA"/>
-        <SolidColorBrush x:Key="TextMuted" Color="#8D99AE"/>
+        <!-- ================================================================
+             NEWS DESK OPERATOR DESIGN SYSTEM
+             Deep navy / black control room with restrained red accent,
+             coral-to-blue gradient signature, and violet supporting tones.
+             ================================================================ -->
+        <SolidColorBrush x:Key="InkDeep" Color="#04070D"/>
+        <SolidColorBrush x:Key="InkBase" Color="#081020"/>
+        <SolidColorBrush x:Key="Panel" Color="#0C1830"/>
+        <SolidColorBrush x:Key="PanelRaised" Color="#122140"/>
+        <SolidColorBrush x:Key="BorderLine" Color="#1B2B47"/>
+        <SolidColorBrush x:Key="BorderSoft" Color="#142240"/>
+        <SolidColorBrush x:Key="AccentRed" Color="#E8112D"/>
+        <SolidColorBrush x:Key="AccentRedHover" Color="#FF2745"/>
+        <SolidColorBrush x:Key="AccentCoral" Color="#FF7A63"/>
+        <SolidColorBrush x:Key="AccentAzure" Color="#2E7DE1"/>
+        <SolidColorBrush x:Key="AccentViolet" Color="#8A63D2"/>
+        <SolidColorBrush x:Key="TextHi" Color="#F2F6FC"/>
+        <SolidColorBrush x:Key="TextMid" Color="#C9D4E4"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#8CA0BC"/>
+        <SolidColorBrush x:Key="TextDim" Color="#5E7191"/>
+
+        <LinearGradientBrush x:Key="GradHeadline" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#E8112D" Offset="0"/>
+            <GradientStop Color="#FF7A63" Offset="0.35"/>
+            <GradientStop Color="#2E7DE1" Offset="0.8"/>
+            <GradientStop Color="#1B4E96" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="GradPurple" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#4A2F73" Offset="0"/>
+            <GradientStop Color="#8A63D2" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- Typography -->
+        <FontFamily x:Key="FontUi">Segoe UI Variable Text, Segoe UI, Inter, Helvetica Neue, Arial</FontFamily>
+        <FontFamily x:Key="FontHead">Segoe UI Variable Display, Segoe UI, Inter, Helvetica Neue, Arial</FontFamily>
 
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource TextLight}"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMid}"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
         </Style>
 
+        <!-- Section header: gradient rail + label -->
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontHead}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{StaticResource TextHi}"/>
+        </Style>
+
+        <Style x:Key="MicroLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+        </Style>
+
+        <!-- Buttons -->
         <Style x:Key="PrimaryButton" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource AccentRed}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="Padding" Value="16,8"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="2" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource AccentRedHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource AccentRedHover}"/>
-                </Trigger>
-            </Style.Triggers>
         </Style>
 
         <Style x:Key="SecondaryButton" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource NavySurface}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextLight}"/>
+            <Setter Property="Background" Value="{StaticResource PanelRaised}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextHi}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="BorderBrush" Value="{StaticResource NavyBorder}"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="Padding" Value="13,7"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLine}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#1A3153"/>
+                                <Setter Property="BorderBrush" Value="#2E4B77"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource NavyLight}"/>
-                </Trigger>
-            </Style.Triggers>
         </Style>
 
-        <Style x:Key="ActionGreenButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
-            <Setter Property="Background" Value="#0F4C3A"/>
-            <Setter Property="BorderBrush" Value="{StaticResource AccentGreen}"/>
-            <Setter Property="Foreground" Value="#5EEAD4"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#15664F"/>
-                </Trigger>
-            </Style.Triggers>
+        <!-- Azure action (secondary primary, e.g. LAUNCH PROJECTOR) -->
+        <Style x:Key="AzureButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentAzure}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#4A93F0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Dark TextBox -->
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="{StaticResource NavyDark}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextLight}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource NavyBorder}"/>
+            <Setter Property="Background" Value="{StaticResource InkBase}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextHi}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource AccentCoral}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLine}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="SelectionBrush" Value="{StaticResource AccentAzure}"/>
         </Style>
 
         <!-- Dark ComboBox -->
         <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="{StaticResource NavyDark}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextLight}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource NavyBorder}"/>
-            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Background" Value="{StaticResource InkBase}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextHi}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLine}"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <!-- Fully dark template: the stock Windows chrome ignores Background and
+                 left light-on-light text in the selection box. -->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Chrome" Background="{StaticResource InkBase}" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" CornerRadius="2">
+                                            <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Data="M0,0 L4,4 L8,0 Z" Fill="{StaticResource TextMuted}"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#2E4B77"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter IsHitTestVisible="False"
+                                              Margin="{TemplateBinding Padding}"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                            <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                                <Border Background="{StaticResource InkBase}" BorderBrush="{StaticResource BorderLine}" BorderThickness="1"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ScrollViewer>
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Setter Property="ItemContainerStyle">
                 <Setter.Value>
                     <Style TargetType="ComboBoxItem">
-                        <Setter Property="Foreground" Value="{StaticResource TextLight}"/>
-                        <Setter Property="Background" Value="{StaticResource NavyCard}"/>
-                        <Setter Property="Padding" Value="8,4"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextHi}"/>
+                        <Setter Property="Background" Value="{StaticResource InkBase}"/>
+                        <Setter Property="Padding" Value="8,5"/>
                         <Style.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter Property="Background" Value="{StaticResource NavySurface}"/>
+                                <Setter Property="Background" Value="{StaticResource PanelRaised}"/>
                             </Trigger>
                         </Style.Triggers>
                     </Style>
@@ -117,51 +230,233 @@
             </Setter>
         </Style>
 
-        <!-- TabControl Dark Styling -->
+        <!-- Dark CheckBox -->
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource TextMid}"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Dark Slider -->
+        <Style TargetType="Slider">
+            <Setter Property="Foreground" Value="{StaticResource AccentCoral}"/>
+        </Style>
+
+        <!-- DataGrid (structured newsroom table) -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="RowBackground" Value="Transparent"/>
+            <Setter Property="AlternatingRowBackground" Value="#0A1428"/>
+            <Setter Property="Foreground" Value="{StaticResource TextHi}"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#12203A"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="RowHeight" Value="30"/>
+            <Setter Property="ColumnHeaderHeight" Value="32"/>
+            <Setter Property="EnableRowVirtualization" Value="True"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#0A1326"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        </Style>
+        <Style TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#1B4E96"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="DataGridRow">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#101F3A"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Panel (control-room module: navy surface, hairline border) -->
+        <Style x:Key="ModulePanel" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource Panel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Padding" Value="14"/>
+        </Style>
+
+        <!-- TabItem: editorial underline accent -->
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="Padding" Value="18,9"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="TabBorder" Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="1,1,1,0" CornerRadius="4,4,0,0" Margin="2,0" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
+                        <Grid>
+                            <Border 
+                                x:Name="TabChrome"
+                                Background="Transparent"
+                                BorderThickness="0" 
+                                Padding="{TemplateBinding Padding}">
+                                <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border x:Name="AccentBar" Height="2.5" VerticalAlignment="Bottom" Margin="14,0" CornerRadius="2" Opacity="0" Background="{StaticResource GradHeadline}"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource NavySurface}"/>
-                                <Setter Property="Foreground" Value="{StaticResource AccentCyan}"/>
+                                <Setter TargetName="AccentBar" Property="Opacity" Value="1"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextHi}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="{StaticResource TextLight}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextMid}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- ================================================================
+             STUDIO LAYOUT (OBS-style): monitors on top, docks below
+             ================================================================ -->
+        <BooleanToVisibilityConverter x:Key="BoolVis"/>
+
+        <!-- Dock: titled panel like OBS's Sources / Audio Mixer / Controls -->
+        <Style x:Key="Dock" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource Panel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="3"/>
+        </Style>
+        <Style x:Key="DockTitle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontHead}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource TextHi}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="DockHeader" TargetType="Border">
+            <Setter Property="Background" Value="#0A1428"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="CornerRadius" Value="3,3,0,0"/>
+        </Style>
+
+        <!-- Compact button for dense docks -->
+        <Style x:Key="SmallButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style x:Key="SmallPrimary" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style x:Key="SmallAzure" TargetType="Button" BasedOn="{StaticResource AzureButton}">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
+        <!-- Layer on/off switch: Tag carries the live state (True = on air) -->
+        <Style x:Key="LayerToggle" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+            <Setter Property="Background" Value="{StaticResource InkBase}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLine}"/>
+            <Setter Property="Content" Value="OFF"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="12">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Tag">
+                    <Trigger.Value><sys:Boolean>True</sys:Boolean></Trigger.Value>
+                    <Setter Property="Content" Value="ON"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="Background" Value="{StaticResource AccentRed}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentRedHover}"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#2E4B77"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Tiny chip shown on the program monitor for each live layer -->
+        <Style x:Key="MonitorChip" TargetType="Border">
+            <Setter Property="Background" Value="#D9C8102E"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Padding" Value="6,1"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+        </Style>
+        <Style x:Key="ChipText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock" BasedOn="{StaticResource MicroLabel}">
+            <Setter Property="Margin" Value="0,0,0,2"/>
+            <Setter Property="FontSize" Value="10"/>
+        </Style>
     </Window.Resources>
 
-    <Grid>
+    <Viewbox Stretch="Uniform"
+             StretchDirection="DownOnly"
+             HorizontalAlignment="Center"
+             VerticalAlignment="Center">
+      <Grid Width="1500" Height="920">
         <Grid.RowDefinitions>
-            <!-- Header Bar -->
-            <RowDefinition Height="Auto"/>
-            <!-- Dual Monitors & Primary Take Live Bar -->
-            <RowDefinition Height="Auto"/>
-            <!-- Quick Breaking News Bar -->
-            <RowDefinition Height="Auto"/>
-            <!-- Workspace Tabs -->
+            <!-- Top bar: identity, projector output, on-air status -->
+            <RowDefinition Height="46"/>
+            <!-- Studio mode: Preview | Take | Program -->
             <RowDefinition Height="*"/>
-            <!-- Footer Status Bar -->
-            <RowDefinition Height="Auto"/>
+            <!-- Docks: Sources | Layers & Mixer | Editor | Controls -->
+            <RowDefinition Height="392"/>
+            <!-- Status bar -->
+            <RowDefinition Height="26"/>
         </Grid.RowDefinitions>
 
         <!-- ============================================================== -->
-        <!-- 1. TOP HEADER & BROADCAST ROUTING BAR                          -->
+        <!-- 1. TOP BAR                                                     -->
         <!-- ============================================================== -->
-        <Border Grid.Row="0" Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="0,0,0,1" Padding="16,10">
+        <Border Grid.Row="0" Background="#020F1E" BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1" Padding="12,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -169,48 +464,50 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Station Branding -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="{StaticResource AccentRed}" CornerRadius="3" Padding="8,3" Margin="0,0,10,0">
-                        <TextBlock Text="NEWS" FontWeight="ExtraBold" FontSize="18" Foreground="White"/>
+                    <Border Background="{StaticResource AccentRed}" CornerRadius="3,0,0,3" Padding="8,3">
+                        <TextBlock Text="E" FontFamily="{StaticResource FontHead}" FontWeight="ExtraBold" FontSize="15" Foreground="White"/>
                     </Border>
-                    <TextBlock Text="DESK" FontWeight="ExtraBold" FontSize="18" Foreground="White" VerticalAlignment="Center"/>
-                    <TextBlock Text="PRO BROADCAST CONTROLLER" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource AccentCyan}" VerticalAlignment="Center" Margin="14,2,0,0"/>
+                    <Border Background="#101C33" CornerRadius="0,3,3,0" Padding="10,3" BorderBrush="{StaticResource BorderLine}" BorderThickness="0,1,1,1">
+                        <TextBlock Text="EMPYREAN NEWS" FontFamily="{StaticResource FontHead}" FontWeight="Bold" FontSize="15" Foreground="White"/>
+                    </Border>
+                    <TextBlock Text="STUDIO" FontFamily="{StaticResource FontUi}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource AccentCoral}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                 </StackPanel>
 
-                <!-- Projector / Display Selection -->
+                <!-- Projector output -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="PROJECTOR / HDMI DISPLAY:" FontWeight="Bold" FontSize="11" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ComboBox ItemsSource="{Binding ConnectedDisplays}" 
-                              SelectedItem="{Binding SelectedDisplay}" 
-                              DisplayMemberPath="Description" 
-                              Width="280" Margin="0,0,10,0"/>
-                    <Button Content="LAUNCH PROJECTOR" Command="{Binding LaunchBroadcastCommand}" Style="{StaticResource ActionGreenButton}" Margin="0,0,6,0"/>
-                    <Button Content="CLOSE" Command="{Binding CloseBroadcastCommand}" Style="{StaticResource SecondaryButton}"/>
+                    <TextBlock Text="OUTPUT" Style="{StaticResource MicroLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox ItemsSource="{Binding ConnectedDisplays}"
+                              SelectedItem="{Binding SelectedDisplay}"
+                              DisplayMemberPath="Description"
+                              Width="250" Margin="0,0,6,0"/>
+                    <Button Content="⟳" Command="{Binding RefreshDisplaysCommand}" Style="{StaticResource SmallButton}" ToolTip="Refresh detected monitors" Margin="0,0,10,0"/>
+                    <Button Content="LAUNCH PROJECTOR" Command="{Binding LaunchBroadcastCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,6,0"/>
+                    <Button Content="CLOSE OUTPUT" Command="{Binding CloseBroadcastCommand}" Style="{StaticResource SmallButton}"/>
                 </StackPanel>
 
-                <!-- Live Indicators & Standby Controls -->
+                <!-- On-air status -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- Status Badge -->
-                    <Border CornerRadius="4" Padding="12,5" Margin="0,0,10,0">
+                    <TextBlock Text="{Binding PlaybackTimeText}" FontFamily="Consolas" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentAzure}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <Border CornerRadius="999" Padding="12,4">
                         <Border.Style>
                             <Style TargetType="Border">
-                                <Setter Property="Background" Value="#332200"/>
-                                <Setter Property="BorderBrush" Value="#FFAA00"/>
+                                <Setter Property="Background" Value="#1A1403"/>
+                                <Setter Property="BorderBrush" Value="#8A6A14"/>
                                 <Setter Property="BorderThickness" Value="1"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsLiveOnAir}" Value="True">
-                                        <Setter Property="Background" Value="#5C000B"/>
+                                        <Setter Property="Background" Value="#3A050C"/>
                                         <Setter Property="BorderBrush" Value="{StaticResource AccentRed}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
                         <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="8" Height="8" Margin="0,0,6,0">
+                            <Ellipse Width="8" Height="8" Margin="0,0,7,0">
                                 <Ellipse.Style>
                                     <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="#FFAA00"/>
+                                        <Setter Property="Fill" Value="#D9A81E"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsLiveOnAir}" Value="True">
                                                 <Setter Property="Fill" Value="{StaticResource AccentRed}"/>
@@ -219,15 +516,15 @@
                                     </Style>
                                 </Ellipse.Style>
                             </Ellipse>
-                            <TextBlock FontWeight="Bold" FontSize="12">
+                            <TextBlock FontFamily="{StaticResource FontUi}" FontWeight="Bold" FontSize="11">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="STANDBY / READY"/>
-                                        <Setter Property="Foreground" Value="#FFAA00"/>
+                                        <Setter Property="Text" Value="STANDBY"/>
+                                        <Setter Property="Foreground" Value="#E3B93E"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsLiveOnAir}" Value="True">
-                                                <Setter Property="Text" Value="ON AIR / BROADCASTING"/>
-                                                <Setter Property="Foreground" Value="{StaticResource AccentRed}"/>
+                                                <Setter Property="Text" Value="ON AIR"/>
+                                                <Setter Property="Foreground" Value="#FF6B6B"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -235,693 +532,1008 @@
                             </TextBlock>
                         </StackPanel>
                     </Border>
-
-                    <!-- Standby Toggle -->
-                    <Button Content="STANDBY SLATE (F6)" Command="{Binding ToggleStandbyCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"/>
-                    <Button Content="LIVE BADGE" Command="{Binding ToggleLiveIndicatorCommand}" Style="{StaticResource SecondaryButton}"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- ============================================================== -->
-        <!-- 2. DUAL MONITORS: PROGRAM (ON AIR) & PREVIEW (NEXT UP)         -->
+        <!-- 2. STUDIO MODE: PREVIEW | TAKE | PROGRAM                       -->
         <!-- ============================================================== -->
-        <Grid Grid.Row="1" Margin="16,12,16,8">
+        <Grid Grid.Row="1" Margin="10,8,10,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="150"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- PROGRAM MONITOR (ON AIR - PROJECTOR OUTPUT) -->
-            <Border Grid.Column="0" Background="{StaticResource NavyCard}" BorderBrush="{StaticResource AccentRed}" BorderThickness="2" CornerRadius="6" Padding="14">
+            <!-- PREVIEW -->
+            <Border Grid.Column="0" Style="{StaticResource Dock}" BorderBrush="#1B4E96">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="26"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="32"/>
                     </Grid.RowDefinitions>
-
-                    <!-- Header -->
-                    <Grid Grid.Row="0" Margin="0,0,0,8">
-                        <StackPanel Orientation="Horizontal">
-                            <Border Background="{StaticResource AccentRed}" CornerRadius="3" Padding="6,2" Margin="0,0,8,0">
-                                <TextBlock Text="PROGRAM" FontWeight="Bold" FontSize="11" Foreground="White"/>
-                            </Border>
-                            <TextBlock Text="ON AIR (PROJECTOR)" FontWeight="Bold" FontSize="12" Foreground="{StaticResource AccentRed}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock Text="{Binding ActiveTransition, StringFormat='TRANSITION: {0}'}" 
-                                   HorizontalAlignment="Right" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource AccentCyan}"/>
-                    </Grid>
-
-                    <!-- Program Media Info -->
-                    <Border Grid.Row="1" Background="{StaticResource NavyDark}" CornerRadius="4" Padding="12" Margin="0,0,0,8">
-                        <StackPanel>
-                            <TextBlock Text="{Binding OnAirMedia.Title, FallbackValue='[STANDBY - NO ACTIVE STORY]'}" 
-                                       FontWeight="Bold" FontSize="16" Foreground="White" TextTrimming="CharacterEllipsis"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <TextBlock Text="{Binding OnAirMedia.Category, FallbackValue='System'}" 
-                                           FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource AccentCyan}" Margin="0,0,12,0"/>
-                                <TextBlock Text="{Binding PlaybackTimeText}" FontWeight="Bold" FontSize="12" Foreground="#E2E8F0"/>
+                    <Border Grid.Row="0" Style="{StaticResource DockHeader}">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Background="{StaticResource AccentAzure}" CornerRadius="2" Padding="6,1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="PREVIEW" Style="{StaticResource ChipText}" FontSize="10"/>
+                                </Border>
+                                <TextBlock VerticalAlignment="Center" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextHi}" TextTrimming="CharacterEllipsis" MaxWidth="440">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="{Binding PreviewMedia.Title}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PreviewMedia}" Value="{x:Null}">
+                                                    <Setter Property="Text" Value="{Binding PreviewGraphic.Title, FallbackValue='Nothing cued', TargetNullValue='Nothing cued'}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
-                        </StackPanel>
+                            <TextBlock Text="{Binding PreviewMedia.KindLabel}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Foreground="{StaticResource AccentAzure}"/>
+                        </Grid>
                     </Border>
 
-                    <!-- Transport Bar -->
-                    <Grid Grid.Row="2" Margin="0,0,0,8">
+                    <!-- Private operator-side preview; never touches the projector -->
+                    <Grid Grid.Row="1" Background="#02050A" ClipToBounds="True">
+                        <TextBlock Text="Double-click a source below to cue it here" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource TextDim}" FontSize="12"/>
+                        <MediaElement x:Name="PreviewVideoMonitor"
+                                      LoadedBehavior="Manual"
+                                      UnloadedBehavior="Stop"
+                                      ScrubbingEnabled="True"
+                                      Volume="0"
+                                      Stretch="Uniform"
+                                      MediaOpened="PreviewVideoMonitor_MediaOpened"
+                                      MediaEnded="PreviewVideoMonitor_MediaEnded"
+                                      MediaFailed="PreviewVideoMonitor_MediaFailed"/>
+                        <Image x:Name="PreviewImageMonitor" Stretch="Uniform" Visibility="Collapsed"/>
+
+                        <!-- Graphic slide placeholder -->
+                        <Border Background="#EEF0F4">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PreviewGraphic}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel VerticalAlignment="Center" Margin="40,0">
+                                <Border Background="{StaticResource AccentRed}" HorizontalAlignment="Left" Padding="8,2" Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding PreviewGraphic.Category}" Foreground="White" FontWeight="Bold" FontSize="11"/>
+                                </Border>
+                                <TextBlock Text="{Binding PreviewGraphic.Title}" Foreground="#0C1424" FontFamily="{StaticResource FontHead}" FontWeight="Black" FontSize="26" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding PreviewGraphic.Subtitle}" Foreground="#1C2433" FontSize="13" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Person caption preview -->
+                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="22,0,0,22" IsHitTestVisible="False">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PreviewMedia.CaptionName, FallbackValue=''}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <Border Background="White" BorderBrush="{StaticResource AccentRed}" BorderThickness="5,0,0,0" Padding="10,3">
+                                <TextBlock Text="{Binding PreviewMedia.CaptionName}" Foreground="#0C1424" FontWeight="Bold" FontSize="15"/>
+                            </Border>
+                            <Border Background="{StaticResource AccentRed}" HorizontalAlignment="Left" Padding="10,2">
+                                <TextBlock Text="{Binding PreviewMedia.CaptionTitle}" Foreground="White" FontWeight="SemiBold" FontSize="10.5"/>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Preview transport (operator only) -->
+                    <Grid Grid.Row="2" Margin="8,0">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-
-                        <!-- Seek Slider -->
-                        <Slider x:Name="TimelineSlider" Grid.Column="0" Minimum="0" 
-                                Maximum="{Binding PlaybackDuration}" 
-                                Value="{Binding PlaybackCurrentTime, Mode=TwoWay}"
-                                VerticalAlignment="Center" Margin="0,0,12,0"/>
-
-                        <!-- Transport Buttons -->
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <Button Content="▶ PLAY" Command="{Binding PlayCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
-                            <Button Content="⏸ PAUSE" Command="{Binding PauseCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
-                            <Button Content="⏹ STOP" Command="{Binding StopCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
-                            <Button Content="↺ REPLAY" Command="{Binding ReplayCommand}" Style="{StaticResource SecondaryButton}"/>
-                        </StackPanel>
+                        <Button Grid.Column="0" Content="PLAY" Click="PreviewPlayPause_Click" Style="{StaticResource SmallButton}" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="↺" Click="PreviewReplay_Click" Style="{StaticResource SmallButton}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <Slider x:Name="PreviewTimelineSlider" Grid.Column="2" Minimum="0" Maximum="1" Value="0" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="PreviewTimeDisplay" Grid.Column="3" Text="00:00 / 00:00" Foreground="{StaticResource TextMid}" FontFamily="Consolas" FontSize="10.5" VerticalAlignment="Center"/>
                     </Grid>
-
-                    <!-- Live Graphics Summary -->
-                    <Border Grid.Row="3" Background="{StaticResource NavySurface}" CornerRadius="3" Padding="8,4">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="LIVE LOWER THIRD: " FontWeight="Bold" FontSize="10" Foreground="{StaticResource TextMuted}"/>
-                            <TextBlock Text="{Binding LiveGraphic.Title, FallbackValue='[None active]'}" 
-                                       FontWeight="SemiBold" FontSize="10" Foreground="{StaticResource TextLight}" TextTrimming="CharacterEllipsis"/>
-                            <Button Content="CLEAR GRAPHIC" Command="{Binding ClearLiveHeadlineCommand}" Style="{StaticResource SecondaryButton}" 
-                                    Padding="6,1" FontSize="10" Margin="12,0,0,0"/>
-                        </StackPanel>
-                    </Border>
                 </Grid>
             </Border>
 
-            <!-- PREVIEW MONITOR (NEXT UP - OPERATOR CUE) -->
-            <Border Grid.Column="2" Background="{StaticResource NavyCard}" BorderBrush="{StaticResource AccentCyan}" BorderThickness="2" CornerRadius="6" Padding="14">
+            <!-- TAKE column (studio-mode transition) -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0">
+                <TextBlock Text="TRANSITION" Style="{StaticResource MicroLabel}" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                <ComboBox ItemsSource="{Binding AvailableTransitions}"
+                          SelectedItem="{Binding PreviewTransition, Mode=TwoWay}"
+                          Margin="0,0,0,4"/>
+                <TextBlock Text="500 ms · Cut 0 ms" Style="{StaticResource MicroLabel}" FontSize="9.5" Foreground="{StaticResource TextDim}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                <Button Command="{Binding TakeLiveCommand}" Style="{StaticResource PrimaryButton}" Height="84" Padding="6" ToolTip="Send Preview to Program with the chosen transition">
+                    <StackPanel>
+                        <TextBlock Text="TAKE ▶" Foreground="White" FontFamily="{StaticResource FontHead}" FontWeight="ExtraBold" FontSize="20" HorizontalAlignment="Center"/>
+                        <TextBlock Text="F5" Foreground="#FFD0D6" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Content="STANDBY  F6" Command="{Binding ToggleStandbyCommand}" Style="{StaticResource SecondaryButton}" Margin="0,10,0,0"/>
+                <TextBlock Text="Esc = emergency standby" Style="{StaticResource MicroLabel}" FontSize="9.5" Foreground="{StaticResource TextDim}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+            </StackPanel>
+
+            <!-- PROGRAM -->
+            <Border Grid.Column="2">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource Dock}">
+                        <Setter Property="BorderBrush" Value="#5C1220"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsLiveOnAir}" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource AccentRed}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="26"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="32"/>
                     </Grid.RowDefinitions>
-
-                    <!-- Header -->
-                    <Grid Grid.Row="0" Margin="0,0,0,8">
-                        <StackPanel Orientation="Horizontal">
-                            <Border Background="{StaticResource AccentCyan}" CornerRadius="3" Padding="6,2" Margin="0,0,8,0">
-                                <TextBlock Text="PREVIEW" FontWeight="Bold" FontSize="11" Foreground="Black"/>
-                            </Border>
-                            <TextBlock Text="NEXT UP (PRIVATE CUE)" FontWeight="Bold" FontSize="12" Foreground="{StaticResource AccentCyan}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock Text="500ms Animated Duration" HorizontalAlignment="Right" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMuted}"/>
-                    </Grid>
-
-                    <!-- Preview Media Info -->
-                    <Border Grid.Row="1" Background="{StaticResource NavyDark}" CornerRadius="4" Padding="12" Margin="0,0,0,8">
-                        <StackPanel>
-                            <TextBlock Text="{Binding PreviewMedia.Title, FallbackValue='[Select a story below to cue into preview]'}" 
-                                       FontWeight="Bold" FontSize="16" Foreground="White" TextTrimming="CharacterEllipsis"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <TextBlock Text="{Binding PreviewMedia.Category, FallbackValue='Ready'}" 
-                                           FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource AccentCyan}" Margin="0,0,12,0"/>
-                                <TextBlock Text="{Binding PreviewMedia.FormattedDuration, FallbackValue='00:00'}" 
-                                           FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMuted}"/>
+                    <Border Grid.Row="0" Style="{StaticResource DockHeader}">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Background="{StaticResource AccentRed}" CornerRadius="2" Padding="6,1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="PROGRAM" Style="{StaticResource ChipText}" FontSize="10"/>
+                                </Border>
+                                <TextBlock VerticalAlignment="Center" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextHi}" TextTrimming="CharacterEllipsis" MaxWidth="400">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="{Binding OnAirMedia.Title}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding OnAirMedia}" Value="{x:Null}">
+                                                    <Setter Property="Text" Value="{Binding OnAirGraphic.Title, FallbackValue='Nothing on air', TargetNullValue='Nothing on air'}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
-                        </StackPanel>
+                            <TextBlock Text="{Binding ActiveTransition, StringFormat='via {0}'}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Foreground="{StaticResource AccentCoral}"/>
+                        </Grid>
                     </Border>
 
-                    <!-- TAKE LIVE PRIMARY ACTION BAR -->
-                    <Grid Grid.Row="2" Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                    <!-- Dashboard mirror of the projector; the canvas stays authoritative -->
+                    <Grid Grid.Row="1" Background="#02050A" ClipToBounds="True">
+                        <MediaElement x:Name="ProgramVideoMonitor"
+                                      LoadedBehavior="Manual"
+                                      UnloadedBehavior="Stop"
+                                      Volume="0"
+                                      Stretch="Uniform"
+                                      MediaOpened="ProgramVideoMonitor_MediaOpened"
+                                      MediaFailed="ProgramVideoMonitor_MediaFailed"/>
+                        <Image x:Name="ProgramImageMonitor" Stretch="Uniform" Visibility="Collapsed"/>
 
-                        <!-- Big Red TAKE LIVE Button -->
-                        <Button Grid.Column="0" Content="★ TAKE LIVE (F5)" 
-                                Command="{Binding TakeLiveCommand}" 
-                                Style="{StaticResource PrimaryButton}" 
-                                FontSize="16" Padding="20,10" Margin="0,0,10,0"/>
+                        <Border Background="#EEF0F4">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding OnAirGraphic}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel VerticalAlignment="Center" Margin="40,0">
+                                <Border Background="{StaticResource AccentRed}" HorizontalAlignment="Left" Padding="8,2" Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding OnAirGraphic.Category}" Foreground="White" FontWeight="Bold" FontSize="11"/>
+                                </Border>
+                                <TextBlock Text="{Binding OnAirGraphic.Title}" Foreground="#0C1424" FontFamily="{StaticResource FontHead}" FontWeight="Black" FontSize="26" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
 
-                        <!-- Transition Selector for Preview -->
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                            <TextBlock Text="TRANSITION: " FontWeight="Bold" FontSize="11" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                            <ComboBox ItemsSource="{Binding AvailableTransitions}" 
-                                      SelectedItem="{Binding PreviewTransition, Mode=TwoWay}"
-                                      Width="120"/>
+                        <!-- Person caption on air -->
+                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="22,0,0,22" IsHitTestVisible="False">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding OnAirMedia.CaptionName, FallbackValue=''}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsSceneCaptionVisible}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <Border Background="White" BorderBrush="{StaticResource AccentRed}" BorderThickness="5,0,0,0" Padding="10,3">
+                                <TextBlock Text="{Binding OnAirMedia.CaptionName}" Foreground="#0C1424" FontWeight="Bold" FontSize="15"/>
+                            </Border>
+                            <Border Background="{StaticResource AccentRed}" HorizontalAlignment="Left" Padding="10,2">
+                                <TextBlock Text="{Binding OnAirMedia.CaptionTitle}" Foreground="White" FontWeight="SemiBold" FontSize="10.5"/>
+                            </Border>
                         </StackPanel>
 
-                        <!-- Preview Graphic button -->
-                        <Button Grid.Column="2" Content="PREVIEW SLIDE" Command="{Binding PreviewHeadlineCommand}" Style="{StaticResource SecondaryButton}"/>
+                        <!-- Standby slate indicator -->
+                        <Border Background="#E6081020" Visibility="{Binding IsStandbyActive, Converter={StaticResource BoolVis}}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="STANDBY SLATE ON AIR" Foreground="#E3B93E" FontFamily="{StaticResource FontHead}" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Cue a source in Preview, then TAKE (F5)" Foreground="{StaticResource TextMuted}" FontSize="11.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Live layer chips -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0" IsHitTestVisible="False">
+                            <Border Style="{StaticResource MonitorChip}" Visibility="{Binding IsLowerThirdLive, Converter={StaticResource BoolVis}}">
+                                <TextBlock Text="LOWER THIRD" Style="{StaticResource ChipText}"/>
+                            </Border>
+                            <Border Style="{StaticResource MonitorChip}" Visibility="{Binding IsVoiceOverActive, Converter={StaticResource BoolVis}}">
+                                <TextBlock Text="VOICE-OVER" Style="{StaticResource ChipText}"/>
+                            </Border>
+                            <Border Style="{StaticResource MonitorChip}" Visibility="{Binding AreSpeakersLive, Converter={StaticResource BoolVis}}">
+                                <TextBlock Text="SPEAKERS" Style="{StaticResource ChipText}"/>
+                            </Border>
+                            <Border Style="{StaticResource MonitorChip}" Background="#D92E7DE1" Visibility="{Binding IsTickerVisible, Converter={StaticResource BoolVis}}">
+                                <TextBlock Text="TICKER" Style="{StaticResource ChipText}"/>
+                            </Border>
+                        </StackPanel>
                     </Grid>
 
-                    <!-- Prepared Graphic Summary -->
-                    <Border Grid.Row="3" Background="{StaticResource NavySurface}" CornerRadius="3" Padding="8,4">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="PREPARED GRAPHIC: " FontWeight="Bold" FontSize="10" Foreground="{StaticResource TextMuted}"/>
-                            <TextBlock Text="{Binding EditingHeadline.Title, FallbackValue='[None prepared]'}" 
-                                       FontWeight="SemiBold" FontSize="10" Foreground="{StaticResource TextLight}" TextTrimming="CharacterEllipsis"/>
+                    <!-- Program transport (controls the projector) -->
+                    <Grid Grid.Row="2" Margin="8,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                            <Button Content="▶" Command="{Binding PlayCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Play (Space)"/>
+                            <Button Content="❚❚" Command="{Binding PauseCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Pause (Space)"/>
+                            <Button Content="■" Command="{Binding StopCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Stop"/>
+                            <Button Content="↺" Command="{Binding ReplayCommand}" Style="{StaticResource SmallButton}" ToolTip="Replay from start"/>
                         </StackPanel>
-                    </Border>
+                        <Slider x:Name="TimelineSlider" Grid.Column="1" Minimum="0"
+                                Maximum="{Binding PlaybackDuration}"
+                                Value="{Binding PlaybackCurrentTime, Mode=TwoWay}"
+                                VerticalAlignment="Center"/>
+                    </Grid>
                 </Grid>
             </Border>
         </Grid>
 
         <!-- ============================================================== -->
-        <!-- 3. QUICK BREAKING NEWS BAR                                     -->
+        <!-- 3. DOCKS                                                       -->
         <!-- ============================================================== -->
-        <Border Grid.Row="2" Background="#4A050B" BorderBrush="{StaticResource AccentRed}" BorderThickness="0,1,0,1" Padding="16,8" Margin="0,4,0,8">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+        <Grid Grid.Row="2" Margin="10,0,10,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="400"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="210"/>
+            </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Background="{StaticResource AccentRed}" CornerRadius="3" Padding="8,4" Margin="0,0,12,0" VerticalAlignment="Center">
-                    <TextBlock Text="BREAKING NEWS" FontWeight="ExtraBold" FontSize="12" Foreground="White"/>
-                </Border>
-
-                <!-- Quick Headline -->
-                <TextBox Grid.Column="1" Text="{Binding QuickBreakingHeadline, UpdateSourceTrigger=PropertyChanged}" 
-                         FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
-
-                <!-- Quick Subtitle -->
-                <TextBox Grid.Column="2" Text="{Binding QuickBreakingSubtitle, UpdateSourceTrigger=PropertyChanged}" 
-                         Margin="0,0,12,0" VerticalAlignment="Center"/>
-
-                <!-- Actions -->
-                <Button Grid.Column="3" Content="PREVIEW BREAKING" Command="{Binding QuickBreakingPreviewCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"/>
-                <Button Grid.Column="4" Content="TAKE BREAKING LIVE (F7)" Command="{Binding QuickBreakingLiveCommand}" Style="{StaticResource PrimaryButton}"/>
-            </Grid>
-        </Border>
-
-        <!-- ============================================================== -->
-        <!-- 4. WORKSPACE TABS                                              -->
-        <!-- ============================================================== -->
-        <TabControl Grid.Row="3" Background="{StaticResource NavySurface}" BorderBrush="{StaticResource NavyBorder}" Margin="16,0,16,8">
-            
-            <!-- TAB 1: MEDIA LIBRARY -->
-            <TabItem Header="📁 MEDIA LIBRARY">
-                <Grid Margin="12">
+            <!-- ======================= SOURCES ======================= -->
+            <Border Grid.Column="0" Style="{StaticResource Dock}">
+                <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="26"/>
                         <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-
-                    <!-- Filter Bar -->
-                    <Grid Grid.Row="0" Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="220"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="180"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <TextBlock Grid.Column="0" Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
-                        <TextBox Grid.Column="1" Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,16,0"/>
-
-                        <TextBlock Grid.Column="2" Text="Category:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
-                        <ComboBox Grid.Column="3" ItemsSource="{Binding AvailableCategories}" SelectedItem="{Binding CategoryFilter}" Margin="0,0,16,0"/>
-
-                        <Button Grid.Column="5" Content="➕ IMPORT VIDEO FILES..." Command="{Binding ImportVideoCommand}" Style="{StaticResource PrimaryButton}"/>
-                    </Grid>
-
-                    <!-- Media DataGrid -->
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding FilteredMediaLibrary}" 
-                              SelectedItem="{Binding SelectedMedia}"
-                              AutoGenerateColumns="False" 
-                              IsReadOnly="True"
-                              Background="{StaticResource NavyDark}" 
-                              RowBackground="{StaticResource NavyCard}"
-                              AlternatingRowBackground="{StaticResource NavyDark}"
-                              Foreground="{StaticResource TextLight}"
-                              BorderBrush="{StaticResource NavyBorder}"
-                              GridLinesVisibility="Horizontal"
-                              HorizontalGridLinesBrush="{StaticResource NavyBorder}"
-                              HeadersVisibility="Column"
-                              SelectionMode="Single">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
-                            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="2*"/>
-                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="140"/>
-                            <DataGridTextColumn Header="Assigned Transition" Binding="{Binding AssignedTransition}" Width="150"/>
-                            <DataGridTextColumn Header="Status" Binding="{Binding IsAvailable}" Width="100"/>
-                            <DataGridTextColumn Header="File Path" Binding="{Binding FilePath}" Width="3*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-
-                    <!-- Selected Media Action Bar -->
-                    <Grid Grid.Row="2" Margin="0,10,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Change transition for selected video -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Text="Assigned Transition: " FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <ComboBox x:Name="ComboSelectedTransition" 
-                                      ItemsSource="{Binding AvailableTransitions}" 
-                                      SelectedItem="{Binding SelectedMedia.AssignedTransition, Mode=TwoWay}"
-                                      SelectionChanged="OnTransitionSelectionChanged"
-                                      Width="140"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <Button Content="LOAD TO PREVIEW" Command="{Binding SelectForPreviewCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/>
-                            <Button Content="➕ ADD TO RUNDOWN" Command="{Binding AddToRundownCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
-                        </StackPanel>
-
-                        <Button Grid.Column="3" Content="REMOVE ENTRY" Command="{Binding DeleteMediaCommand}" Style="{StaticResource SecondaryButton}"/>
-                    </Grid>
-                </Grid>
-            </TabItem>
-
-            <!-- TAB 2: NEWS RUNDOWN / PLAYLIST -->
-            <TabItem Header="📋 NEWS RUNDOWN">
-                <Grid Margin="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Grid.Row="0" Text="Ordered story rundown for current broadcast. Drag or use controls to sequence stories." 
-                               Foreground="{StaticResource TextMuted}" Margin="0,0,0,10"/>
-
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding RundownItems}" 
-                              SelectedItem="{Binding SelectedRundownItem}"
-                              AutoGenerateColumns="False" 
-                              IsReadOnly="True"
-                              Background="{StaticResource NavyDark}" 
-                              RowBackground="{StaticResource NavyCard}"
-                              AlternatingRowBackground="{StaticResource NavyDark}"
-                              Foreground="{StaticResource TextLight}"
-                              BorderBrush="{StaticResource NavyBorder}"
-                              HeadersVisibility="Column">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="#" Binding="{Binding OrderIndex}" Width="50"/>
-                            <DataGridTextColumn Header="Story Title" Binding="{Binding MediaItem.Title}" Width="3*"/>
-                            <DataGridTextColumn Header="Category" Binding="{Binding MediaItem.Category}" Width="150"/>
-                            <DataGridTextColumn Header="Assigned Transition" Binding="{Binding MediaItem.AssignedTransition}" Width="150"/>
-                            <DataGridTextColumn Header="Duration" Binding="{Binding MediaItem.FormattedDuration}" Width="100"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-
-                    <Grid Grid.Row="2" Margin="0,10,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="▲ MOVE UP" Command="{Binding MoveRundownUpCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"/>
-                            <Button Content="▼ MOVE DOWN" Command="{Binding MoveRundownDownCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,12,0"/>
-                            <Button Content="LOAD TO PREVIEW" Command="{Binding SelectForPreviewCommand}" CommandParameter="{Binding SelectedRundownItem.MediaItem}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"/>
-                            <Button Content="★ TAKE LIVE FROM RUNDOWN" Command="{Binding TakeLiveRundownCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,12,0"/>
-                            <Button Content="REMOVE FROM RUNDOWN" Command="{Binding RemoveFromRundownCommand}" Style="{StaticResource SecondaryButton}"/>
-                        </StackPanel>
-                    </Grid>
-                </Grid>
-            </TabItem>
-
-            <!-- TAB 3: HEADLINES & GRAPHICS STUDIO -->
-            <TabItem Header="🎨 HEADLINES &amp; GRAPHICS STUDIO">
-                <Grid Margin="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="420"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Graphic Editor Form -->
-                    <Border Grid.Column="0" Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="1" CornerRadius="4" Padding="14">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel>
-                                <TextBlock Text="GRAPHIC &amp; LOWER THIRD DESIGNER" FontWeight="Bold" FontSize="14" Foreground="{StaticResource AccentCyan}" Margin="0,0,0,14"/>
-
-                                <TextBlock Text="Headline Title:" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding EditingHeadline.Title, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
-
-                                <TextBlock Text="Supporting Summary:" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding EditingHeadline.Subtitle, UpdateSourceTrigger=PropertyChanged}" Height="50" TextWrapping="Wrap" Margin="0,0,0,10"/>
-
-                                <Grid Margin="0,0,0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="8"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Category:" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                        <TextBox Text="{Binding EditingHeadline.Category, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="Location Tag:" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                        <TextBox Text="{Binding EditingHeadline.Location, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                </Grid>
-
-                                <Grid Margin="0,0,0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="8"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Reporter Name:" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                        <TextBox Text="{Binding EditingHeadline.ReporterName, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="Reporter Title:" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                        <TextBox Text="{Binding EditingHeadline.ReporterTitle, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                </Grid>
-
-                                <CheckBox Content="Mark as BREAKING NEWS" IsChecked="{Binding EditingHeadline.IsBreaking}" Foreground="White" Margin="0,0,0,16"/>
-
-                                <!-- Action Buttons -->
-                                <WrapPanel Margin="0,0,0,6">
-                                    <Button Content="💾 SAVE DRAFT" Command="{Binding SaveHeadlineDraftCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,6"/>
-                                    <Button Content="👁 PREVIEW SLIDE" Command="{Binding PreviewHeadlineCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,6"/>
-                                    <Button Content="★ TAKE LIVE" Command="{Binding TakeLiveHeadlineCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,6"/>
-                                    <Button Content="UPDATE LIVE" Command="{Binding UpdateLiveHeadlineCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,6"/>
-                                    <Button Content="CLEAR" Command="{Binding ClearLiveHeadlineCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,6"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </ScrollViewer>
+                    <Border Grid.Row="0" Style="{StaticResource DockHeader}">
+                        <Grid>
+                            <TextBlock Text="SOURCES" Style="{StaticResource DockTitle}"/>
+                            <TextBlock Text="double-click = cue to Preview" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" FontSize="9.5" Foreground="{StaticResource TextDim}"/>
+                        </Grid>
                     </Border>
 
-                    <!-- Saved Drafts List -->
-                    <Border Grid.Column="2" Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="1" CornerRadius="4" Padding="14">
+                    <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Padding="0">
+                        <TabControl.Resources>
+                            <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                                <Setter Property="Padding" Value="12,6"/>
+                                <Setter Property="FontSize" Value="11"/>
+                            </Style>
+                        </TabControl.Resources>
+
+                        <!-- MEDIA: videos and pictures -->
+                        <TabItem Header="MEDIA">
+                            <Grid Margin="8,6,8,8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="92"/>
+                                        <ColumnDefinition Width="112"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" Margin="0,0,4,0" ToolTip="Search titles"/>
+                                    <ComboBox Grid.Column="1" ItemsSource="{Binding MediaKinds}" SelectedItem="{Binding KindFilter}" Padding="6,3" Margin="0,0,4,0"/>
+                                    <ComboBox Grid.Column="2" ItemsSource="{Binding AvailableCategories}" SelectedItem="{Binding CategoryFilter}" Padding="6,3"/>
+                                </Grid>
+
+                                <DataGrid x:Name="MediaGrid" Grid.Row="1" ItemsSource="{Binding FilteredMediaLibrary}"
+                                          SelectedItem="{Binding SelectedMedia}"
+                                          IsReadOnly="True" SelectionMode="Single" RowHeight="24"
+                                          MouseDoubleClick="MediaGrid_MouseDoubleClick">
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                            <!-- The menu lives outside the visual tree: hand it the view model via the row's Tag -->
+                                            <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                            <Setter Property="ContextMenu">
+                                                <Setter.Value>
+                                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                                        <MenuItem Header="Rename picture…"
+                                                                  Visibility="{Binding IsImage, Converter={StaticResource BoolVis}}"
+                                                                  Command="{Binding PlacementTarget.Tag.RenameMediaCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                  CommandParameter="{Binding}"
+                                                                  ToolTip="Change the picture name shown in the Admin Photos library"/>
+                                                    </ContextMenu>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="TYPE" Binding="{Binding KindLabel}" Width="62" Foreground="{StaticResource TextMuted}"/>
+                                        <DataGridTextColumn Header="TITLE" Binding="{Binding Title}" Width="*" Foreground="{StaticResource TextHi}"/>
+                                        <DataGridTextColumn Header="CAPTION" Binding="{Binding CaptionName}" Width="90" Foreground="{StaticResource AccentCoral}"/>
+                                        <DataGridTextColumn Header="EFFECT" Binding="{Binding AssignedTransition}" Width="74"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <!-- Selected source details: effect + person caption -->
+                                <Grid Grid.Row="2" Margin="0,6,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="104"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Effect" Style="{StaticResource FieldLabel}"/>
+                                        <ComboBox x:Name="ComboSelectedTransition"
+                                                  ItemsSource="{Binding AvailableTransitions}"
+                                                  SelectedItem="{Binding SelectedMedia.AssignedTransition, Mode=TwoWay}"
+                                                  SelectionChanged="OnTransitionSelectionChanged"
+                                                  Padding="6,3"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Caption name" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding SelectedMedia.CaptionName, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="Designation" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding SelectedMedia.CaptionTitle, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="6" Content="SAVE" Command="{Binding SaveMediaDetailsCommand}" Style="{StaticResource SmallButton}" VerticalAlignment="Bottom" ToolTip="Save the caption (re-cues Preview if this item is cued)"/>
+                                </Grid>
+
+                                <Grid Grid.Row="3" Margin="0,6,0,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="CUE TO PREVIEW" Command="{Binding SelectForPreviewCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,4,0"/>
+                                        <Button Content="+ RUNDOWN" Command="{Binding AddToRundownCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,0"/>
+                                        <Button Content="IMPORT…" Command="{Binding ImportVideoCommand}" Style="{StaticResource SmallPrimary}" ToolTip="Import videos or pictures"/>
+                                    </StackPanel>
+                                    <Button Content="REMOVE" Command="{Binding DeleteMediaCommand}" Style="{StaticResource SmallButton}" HorizontalAlignment="Right"/>
+                                </Grid>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- RUNDOWN: ordered story list -->
+                        <TabItem Header="RUNDOWN">
+                            <Grid Margin="8,6,8,8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Running order. A finished video auto-advances to the next story." Style="{StaticResource MicroLabel}" FontSize="10" Margin="0,0,0,6"/>
+                                <DataGrid x:Name="RundownGrid" Grid.Row="1" ItemsSource="{Binding RundownItems}"
+                                          SelectedItem="{Binding SelectedRundownItem}"
+                                          IsReadOnly="True" RowHeight="24"
+                                          MouseDoubleClick="RundownGrid_MouseDoubleClick">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding OrderIndex}" Width="32"/>
+                                        <DataGridTextColumn Header="STORY" Binding="{Binding MediaItem.Title}" Width="*" Foreground="{StaticResource TextHi}"/>
+                                        <DataGridTextColumn Header="TYPE" Binding="{Binding MediaItem.KindLabel}" Width="62" Foreground="{StaticResource TextMuted}"/>
+                                        <DataGridTextColumn Header="EFFECT" Binding="{Binding MediaItem.AssignedTransition}" Width="74"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <WrapPanel Grid.Row="2" Margin="0,6,0,0">
+                                    <Button Content="▲" Command="{Binding MoveRundownUpCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Move up"/>
+                                    <Button Content="▼" Command="{Binding MoveRundownDownCommand}" Style="{StaticResource SmallButton}" Margin="0,0,6,0" ToolTip="Move down"/>
+                                    <Button Content="CUE" Command="{Binding SelectForPreviewCommand}" CommandParameter="{Binding SelectedRundownItem.MediaItem}" Style="{StaticResource SmallAzure}" Margin="0,0,4,0"/>
+                                    <Button Content="TAKE LIVE NOW" Command="{Binding TakeLiveRundownCommand}" Style="{StaticResource SmallPrimary}" Margin="0,0,4,0"/>
+                                    <Button Content="REMOVE" Command="{Binding RemoveFromRundownCommand}" Style="{StaticResource SmallButton}"/>
+                                </WrapPanel>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </Border>
+
+            <!-- ================== LAYERS + AUDIO MIXER ================== -->
+            <Border Grid.Column="2" Style="{StaticResource Dock}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="26"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="26"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Style="{StaticResource DockHeader}">
                         <Grid>
+                            <TextBlock Text="ON-AIR LAYERS" Style="{StaticResource DockTitle}"/>
+                            <TextBlock Text="⚙ = edit" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" FontSize="9.5" Foreground="{StaticResource TextDim}"/>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Row="1" Margin="8,6,8,4">
+                        <StackPanel.Resources>
+                            <Style x:Key="LayerName" TargetType="TextBlock">
+                                <Setter Property="FontSize" Value="11.5"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextHi}"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Margin" Value="8,0,0,0"/>
+                            </Style>
+                            <Style x:Key="EditButton" TargetType="Button" BasedOn="{StaticResource SmallButton}">
+                                <Setter Property="Content" Value="⚙"/>
+                                <Setter Property="Padding" Value="6,1"/>
+                                <Setter Property="Command" Value="{Binding OpenEditorCommand}"/>
+                            </Style>
+                        </StackPanel.Resources>
+
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource LayerToggle}" Tag="{Binding IsLowerThirdLive}" Command="{Binding ToggleLowerThirdCommand}" ToolTip="Take the Graphics editor's lower third live / clear it"/>
+                            <TextBlock Grid.Column="1" Text="Lower third" Style="{StaticResource LayerName}"/>
+                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="0"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource LayerToggle}" Tag="{Binding IsTickerVisible}" Command="{Binding ToggleTickerVisibleCommand}"/>
+                            <TextBlock Grid.Column="1" Text="News ticker" Style="{StaticResource LayerName}"/>
+                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="1"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource LayerToggle}" Tag="{Binding IsVoiceOverActive}" Command="{Binding ToggleVoiceOverCommand}"/>
+                            <TextBlock Grid.Column="1" Text="Voice-over" Style="{StaticResource LayerName}"/>
+                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="2"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource LayerToggle}" Tag="{Binding AreSpeakersLive}" Command="{Binding ToggleSpeakersCommand}"/>
+                            <TextBlock Grid.Column="1" Text="Speaker windows (2)" Style="{StaticResource LayerName}"/>
+                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="3"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource LayerToggle}" Tag="{Binding IsSceneCaptionVisible}" Command="{Binding ToggleSceneCaptionCommand}" ToolTip="Show/hide person name captions on pictures and videos"/>
+                            <TextBlock Grid.Column="1" Text="Name captions" Style="{StaticResource LayerName}"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource LayerToggle}" Tag="{Binding IsLiveIndicatorVisible}" Command="{Binding ToggleLiveIndicatorCommand}"/>
+                            <TextBlock Grid.Column="1" Text="LIVE badge" Style="{StaticResource LayerName}"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <Border Grid.Row="2" Style="{StaticResource DockHeader}" CornerRadius="0" BorderThickness="0,1,0,1">
+                        <TextBlock Text="AUDIO MIXER" Style="{StaticResource DockTitle}"/>
+                    </Border>
+
+                    <StackPanel Grid.Row="3" Margin="8,6,8,0">
+                        <StackPanel.Resources>
+                            <Style x:Key="MixLabel" TargetType="TextBlock" BasedOn="{StaticResource MicroLabel}">
+                                <Setter Property="Width" Value="70"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                            </Style>
+                            <Style x:Key="MixValue" TargetType="TextBlock">
+                                <Setter Property="Width" Value="36"/>
+                                <Setter Property="FontFamily" Value="Consolas"/>
+                                <Setter Property="FontSize" Value="10.5"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+                                <Setter Property="TextAlignment" Value="Right"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                            </Style>
+                        </StackPanel.Resources>
+                        <DockPanel Margin="0,0,0,4">
+                            <TextBlock DockPanel.Dock="Left" Text="Program" Style="{StaticResource MixLabel}"/>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding ProgramVolume, StringFormat='{}{0:P0}'}" Style="{StaticResource MixValue}"/>
+                            <Slider Minimum="0" Maximum="1" Value="{Binding ProgramVolume}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <DockPanel Margin="0,0,0,4">
+                            <TextBlock DockPanel.Dock="Left" Text="Voice-over" Style="{StaticResource MixLabel}"/>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding VoiceOverVolume, StringFormat='{}{0:P0}'}" Style="{StaticResource MixValue}"/>
+                            <Slider Minimum="0" Maximum="1" Value="{Binding VoiceOverVolume}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <DockPanel Margin="0,0,0,4" ToolTip="Program level while a voice-over or a speaker clip with sound is on air">
+                            <TextBlock DockPanel.Dock="Left" Text="Duck to" Style="{StaticResource MixLabel}"/>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding VoiceOverDuckLevel, StringFormat='{}{0:P0}'}" Style="{StaticResource MixValue}"/>
+                            <Slider Minimum="0" Maximum="1" Value="{Binding VoiceOverDuckLevel}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Left" Text="Intro" Style="{StaticResource MixLabel}"/>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding IntroVolume, StringFormat='{}{0:P0}'}" Style="{StaticResource MixValue}"/>
+                            <Slider Minimum="0" Maximum="1" Value="{Binding IntroVolume}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ======================= EDITOR ======================= -->
+            <Border Grid.Column="4" Style="{StaticResource Dock}">
+                <TabControl Background="Transparent" BorderThickness="0" Padding="0" SelectedIndex="{Binding EditorTabIndex, Mode=TwoWay}">
+                    <TabControl.Resources>
+                        <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                            <Setter Property="Padding" Value="9,6"/>
+                            <Setter Property="FontSize" Value="10.5"/>
+                        </Style>
+                    </TabControl.Resources>
+
+                    <!-- 0. GRAPHICS & LOWER THIRDS -->
+                    <TabItem Header="GRAPHICS">
+                        <Grid Margin="10,8,10,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="200"/>
+                            </Grid.ColumnDefinitions>
+                            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <TextBlock Text="Headline" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingHeadline.Title, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" Margin="0,0,0,6"/>
+                                    <TextBlock Text="Summary" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingHeadline.Subtitle, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" Margin="0,0,0,6"/>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Category" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding EditingHeadline.Category, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Location" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding EditingHeadline.Location, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="4">
+                                            <TextBlock Text="Reporter / guest" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding EditingHeadline.ReporterName, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="6">
+                                            <TextBlock Text="Their title" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding EditingHeadline.ReporterTitle, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition Width="6"/><ColumnDefinition Width="100"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Template" Style="{StaticResource FieldLabel}"/>
+                                            <ComboBox SelectedItem="{Binding EditingHeadline.TemplateType}" ItemsSource="{Binding HeadlineTemplates}" Padding="6,3"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Slide palette" Style="{StaticResource FieldLabel}"/>
+                                            <ComboBox SelectedItem="{Binding EditingHeadline.BackgroundStyle}" ItemsSource="{Binding GraphicPalettes}" Padding="6,3"/>
+                                        </StackPanel>
+                                        <CheckBox Grid.Column="4" Content="BREAKING" IsChecked="{Binding EditingHeadline.IsBreaking}" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                                    </Grid>
+                                    <WrapPanel>
+                                        <Button Content="TAKE LOWER THIRD LIVE" Command="{Binding TakeLiveHeadlineCommand}" Style="{StaticResource SmallPrimary}" Margin="0,0,4,4"/>
+                                        <Button Content="UPDATE LIVE" Command="{Binding UpdateLiveHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,4"/>
+                                        <Button Content="CLEAR" Command="{Binding ClearLiveHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="0,0,10,4"/>
+                                        <Button Content="CUE AS FULL SLIDE" Command="{Binding PreviewHeadlineCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,4,4" ToolTip="Cue as a full-screen slide in Preview, then TAKE"/>
+                                        <Button Content="SAVE DRAFT" Command="{Binding SaveHeadlineDraftCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,4"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <Grid Grid.Column="2">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                <TextBlock Text="SAVED DRAFTS" Style="{StaticResource FieldLabel}"/>
+                                <DataGrid Grid.Row="1" ItemsSource="{Binding HeadlineDrafts}" IsReadOnly="True" HeadersVisibility="None" RowHeight="26">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Binding="{Binding Title}" Width="*" Foreground="{StaticResource TextHi}"/>
+                                        <DataGridTemplateColumn Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="LOAD" Command="{Binding DataContext.LoadHeadlineDraftCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryButton}" Padding="5,1" FontSize="9.5" Margin="0,0,2,0"/>
+                                                        <Button Content="✕" Command="{Binding DataContext.DeleteHeadlineDraftCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryButton}" Padding="5,1" FontSize="9.5" ToolTip="Delete draft"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- 1. TICKER -->
+                    <TabItem Header="TICKER">
+                        <Grid Margin="10,8,10,8">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="SAVED GRAPHIC DRAFTS (Click to load)" FontWeight="Bold" FontSize="14" Foreground="{StaticResource TextLight}" Margin="0,0,0,10"/>
-                            <DataGrid Grid.Row="1" ItemsSource="{Binding HeadlineDrafts}" 
-                                      AutoGenerateColumns="False" 
-                                      IsReadOnly="True"
-                                      Background="{StaticResource NavyDark}" 
-                                      RowBackground="{StaticResource NavyCard}"
-                                      AlternatingRowBackground="{StaticResource NavyDark}"
-                                      Foreground="{StaticResource TextLight}"
-                                      BorderBrush="{StaticResource NavyBorder}"
-                                      HeadersVisibility="Column">
+                            <Grid Grid.Row="0" Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="6"/><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding NewTickerItemCategory, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" ToolTip="Category tag"/>
+                                <TextBox Grid.Column="2" Text="{Binding NewTickerItemText, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" ToolTip="Ticker headline"/>
+                                <Button Grid.Column="4" Content="ADD" Command="{Binding AddTickerItemCommand}" Style="{StaticResource SmallPrimary}"/>
+                            </Grid>
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding TickerDraftItems}" IsReadOnly="False" RowHeight="24">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="2*"/>
-                                    <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120"/>
-                                    <DataGridTextColumn Header="Reporter" Binding="{Binding ReporterName}" Width="120"/>
-                                    <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="110"/>
-                                    <DataGridTemplateColumn Width="140">
+                                    <DataGridCheckBoxColumn Header="ON" Binding="{Binding IsActive}" Width="40"/>
+                                    <DataGridTextColumn Header="TAG" Binding="{Binding Category}" Width="90" Foreground="{StaticResource TextHi}"/>
+                                    <DataGridTextColumn Header="HEADLINE" Binding="{Binding Text}" Width="*" Foreground="{StaticResource TextHi}"/>
+                                    <DataGridTemplateColumn Width="34">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Button Content="LOAD" Command="{Binding DataContext.LoadHeadlineDraftCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryButton}" Padding="8,2" Margin="0,0,4,0"/>
-                                                    <Button Content="DEL" Command="{Binding DataContext.DeleteHeadlineDraftCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryButton}" Padding="8,2"/>
-                                                </StackPanel>
+                                                <Button Content="✕" Command="{Binding DataContext.DeleteTickerItemCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryButton}" Padding="5,1" FontSize="9.5" ToolTip="Delete"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
-                        </Grid>
-                    </Border>
-                </Grid>
-            </TabItem>
 
-            <!-- TAB 4: NEWS TICKER STUDIO -->
-            <TabItem Header="📰 NEWS TICKER STUDIO">
-                <Grid Margin="12">
+                            <!-- Ribbon style -->
+                            <WrapPanel Grid.Row="2" Margin="0,6,0,0">
+                                <WrapPanel.Resources>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource MicroLabel}">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Margin" Value="0,0,4,0"/>
+                                    </Style>
+                                </WrapPanel.Resources>
+                                <CheckBox Content="Breaking red" IsChecked="{Binding DraftTickerConfig.IsBreakingStyle}" Margin="0,0,10,4" FontSize="11"/>
+                                <CheckBox Content="Visible" IsChecked="{Binding DraftTickerConfig.IsVisible}" Margin="0,0,10,4" FontSize="11"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                                    <TextBlock Text="Speed"/>
+                                    <Slider Minimum="40" Maximum="240" Width="70" Value="{Binding DraftTickerConfig.SpeedPixelsPerSecond}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding DraftTickerConfig.SpeedPixelsPerSecond, StringFormat='{}{0:0}'}" Width="26" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                                    <TextBlock Text="Height"/>
+                                    <Slider Minimum="40" Maximum="90" Width="60" Value="{Binding DraftTickerConfig.RibbonHeight}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding DraftTickerConfig.RibbonHeight, StringFormat='{}{0:0}'}" Width="22" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                                    <TextBlock Text="Font"/>
+                                    <Slider Minimum="14" Maximum="32" Width="60" Value="{Binding DraftTickerConfig.FontSize}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding DraftTickerConfig.FontSize, StringFormat='{}{0:0}'}" Width="22" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                                    <TextBlock Text="Tag"/>
+                                    <TextBox Text="{Binding DraftTickerConfig.HeaderTag}" Width="96" Padding="4,2"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                                    <TextBlock Text="Sep."/>
+                                    <TextBox Text="{Binding DraftTickerConfig.Separator}" Width="30" Padding="4,2"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                                    <TextBlock Text="Text"/>
+                                    <TextBox Text="{Binding DraftTickerConfig.TextColor}" Width="66" Padding="4,2" FontFamily="Consolas" FontSize="10.5"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="Ribbon"/>
+                                    <TextBox Text="{Binding DraftTickerConfig.BackgroundColor}" Width="66" Padding="4,2" FontFamily="Consolas" FontSize="10.5"/>
+                                </StackPanel>
+                            </WrapPanel>
+
+                            <Grid Grid.Row="3" Margin="0,4,0,0">
+                                <Button Content="PAUSE / RESUME SCROLL" Command="{Binding ToggleTickerPauseCommand}" Style="{StaticResource SmallButton}" HorizontalAlignment="Left"/>
+                                <Button Content="PUBLISH TICKER TO AIR" Command="{Binding PublishTickerCommand}" Style="{StaticResource SmallPrimary}" HorizontalAlignment="Right" Padding="16,5"/>
+                            </Grid>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- 2. VOICE-OVER -->
+                    <TabItem Header="VOICE-OVER">
+                        <Grid Margin="12,10,12,8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Command="{Binding ToggleVoiceOverCommand}" Padding="18,8" Margin="0,0,12,0">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                                            <Setter Property="Content" Value="🎙  START VOICE-OVER"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsVoiceOverActive}" Value="True">
+                                                    <Setter Property="Content" Value="■  STOP VOICE-OVER"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextMuted}"
+                                           Text="Plays over whatever is on air; program audio dips to the 'Duck to' level and comes back when it ends."/>
+                            </Grid>
+
+                            <TextBlock Grid.Row="1" Text="Voice-over track (optional)" Style="{StaticResource FieldLabel}"/>
+                            <Grid Grid.Row="2" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border Background="{StaticResource InkBase}" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" Padding="8,4" Margin="0,0,6,0">
+                                    <TextBlock Text="{Binding VoiceOverAudioDisplay}" Foreground="{StaticResource TextHi}" TextTrimming="CharacterEllipsis"/>
+                                </Border>
+                                <Button Grid.Column="1" Content="CHOOSE AUDIO…" Command="{Binding SelectVoiceOverAudioCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,0"/>
+                                <Button Grid.Column="2" Content="CLEAR" Command="{Binding ClearVoiceOverAudioCommand}" Style="{StaticResource SmallButton}"/>
+                            </Grid>
+
+                            <Grid Grid.Row="3" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Narrator name (shown on the VOICE OVER tag)" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding VoiceOverName, UpdateSourceTrigger=LostFocus}" Padding="6,3"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Designation" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding VoiceOverDesignation, UpdateSourceTrigger=LostFocus}" Padding="6,3"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <WrapPanel Grid.Row="4">
+                                <CheckBox Content="Show VOICE OVER tag on screen" IsChecked="{Binding VoiceOverShowTag}" Margin="0,0,18,6"/>
+                                <CheckBox Content="Loop the track" IsChecked="{Binding VoiceOverLoop}" Margin="0,0,18,6"/>
+                            </WrapPanel>
+
+                            <TextBlock Grid.Row="5" TextWrapping="Wrap" Style="{StaticResource MicroLabel}" FontSize="10" Margin="0,6,0,0"
+                                       Text="No track chosen = live narrator mode: someone speaks in the room while the video plays; the app only dips the video sound and shows the tag until you press STOP. Volume and duck level are in the Audio Mixer. Standby (F6 / Esc) always stops the voice-over."/>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- 3. SPEAKER WINDOWS -->
+                    <TabItem Header="SPEAKERS">
+                        <Grid Margin="10,8,10,8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="230"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="Layout" Style="{StaticResource MicroLabel}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding SpeakerLayouts}" SelectedValue="{Binding SpeakerLayout}" SelectedValuePath="Key" DisplayMemberPath="Value" Padding="6,3"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Content="SHOW ON AIR" Command="{Binding ShowSpeakersCommand}" Style="{StaticResource SmallPrimary}" Margin="0,0,4,0"/>
+                                    <Button Content="UPDATE" Command="{Binding SaveSpeakersCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,0" ToolTip="Save names/camera changes and refresh them on air"/>
+                                    <Button Content="HIDE" Command="{Binding HideSpeakersCommand}" Style="{StaticResource SmallButton}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Grid.Resources>
+                                    <Style x:Key="BoxPanel" TargetType="Border">
+                                        <Setter Property="Background" Value="{StaticResource InkBase}"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource BorderLine}"/>
+                                        <Setter Property="BorderThickness" Value="1"/>
+                                        <Setter Property="Padding" Value="10,8"/>
+                                    </Style>
+                                </Grid.Resources>
+
+                                <!-- Window 1 -->
+                                <Border Grid.Column="0" Style="{StaticResource BoxPanel}">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,6">
+                                            <CheckBox DockPanel.Dock="Right" Content="Show" IsChecked="{Binding Speaker1.IsEnabled}"/>
+                                            <TextBlock Text="WINDOW 1 · LEFT / TOP" FontWeight="Bold" FontSize="11" Foreground="{StaticResource TextHi}"/>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Speaker1SourceDisplay}" Foreground="{StaticResource AccentCoral}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                        <WrapPanel Margin="0,0,0,6">
+                                            <Button Content="CLIP / PICTURE…" Command="{Binding SelectSpeakerFileCommand}" CommandParameter="1" Style="{StaticResource SmallButton}" Margin="0,0,4,4"/>
+                                            <Button Content="CAMERA" Command="{Binding UseSpeakerCameraCommand}" CommandParameter="1" Style="{StaticResource SmallButton}" Margin="0,0,4,4"/>
+                                            <ComboBox ItemsSource="{Binding CameraChoices}" SelectedValue="{Binding Speaker1.CameraIndex}" SelectedValuePath="Key" DisplayMemberPath="Value" Width="86" Padding="4,2" Margin="0,0,4,4"/>
+                                            <Button Content="CLEAR" Command="{Binding ClearSpeakerCommand}" CommandParameter="1" Style="{StaticResource SmallButton}" Margin="0,0,0,4"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="Speaker name" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding Speaker1.Name}" Padding="6,3" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Designation" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding Speaker1.Designation}" Padding="6,3" Margin="0,0,0,6"/>
+                                        <CheckBox Content="Play clip sound (ducks program)" IsChecked="{Binding Speaker1.PlayAudio}" FontSize="11"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Window 2 -->
+                                <Border Grid.Column="2" Style="{StaticResource BoxPanel}">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,6">
+                                            <CheckBox DockPanel.Dock="Right" Content="Show" IsChecked="{Binding Speaker2.IsEnabled}"/>
+                                            <TextBlock Text="WINDOW 2 · RIGHT / BOTTOM" FontWeight="Bold" FontSize="11" Foreground="{StaticResource TextHi}"/>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Speaker2SourceDisplay}" Foreground="{StaticResource AccentCoral}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                        <WrapPanel Margin="0,0,0,6">
+                                            <Button Content="CLIP / PICTURE…" Command="{Binding SelectSpeakerFileCommand}" CommandParameter="2" Style="{StaticResource SmallButton}" Margin="0,0,4,4"/>
+                                            <Button Content="CAMERA" Command="{Binding UseSpeakerCameraCommand}" CommandParameter="2" Style="{StaticResource SmallButton}" Margin="0,0,4,4"/>
+                                            <ComboBox ItemsSource="{Binding CameraChoices}" SelectedValue="{Binding Speaker2.CameraIndex}" SelectedValuePath="Key" DisplayMemberPath="Value" Width="86" Padding="4,2" Margin="0,0,4,4"/>
+                                            <Button Content="CLEAR" Command="{Binding ClearSpeakerCommand}" CommandParameter="2" Style="{StaticResource SmallButton}" Margin="0,0,0,4"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="Speaker name" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding Speaker2.Name}" Padding="6,3" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Designation" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding Speaker2.Designation}" Padding="6,3" Margin="0,0,0,6"/>
+                                        <CheckBox Content="Play clip sound (ducks program)" IsChecked="{Binding Speaker2.PlayAudio}" FontSize="11"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- 4. INTRO & THEME -->
+                    <TabItem Header="INTRO">
+                        <Grid Margin="12,10,12,8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                                <Button Content="PLAY INTRO ON AIR" Command="{Binding PlayIntroCommand}" Style="{StaticResource PrimaryButton}" Padding="18,8" Margin="0,0,8,0"/>
+                                <Button Content="SKIP" Command="{Binding SkipIntroCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,12,0"/>
+                                <TextBlock Text="{Binding IntroStatusText}" Foreground="{StaticResource TextHi}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="After intro" Style="{StaticResource MicroLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox ItemsSource="{Binding IntroPostActions}" SelectedValue="{Binding IntroPostAction}"
+                                          SelectedValuePath="Key" DisplayMemberPath="Value" Width="280" Padding="6,3"/>
+                            </StackPanel>
+                            <Grid Grid.Row="2" Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="Intro video" Style="{StaticResource MicroLabel}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding IntroVideoDisplay}" Foreground="{StaticResource TextHi}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                                <Button Grid.Column="2" Content="CHOOSE…" Command="{Binding SelectIntroVideoCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,0"/>
+                                <Button Grid.Column="3" Content="CLEAR" Command="{Binding ClearIntroVideoCommand}" Style="{StaticResource SmallButton}"/>
+                            </Grid>
+                            <Grid Grid.Row="3" Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="Theme music" Style="{StaticResource MicroLabel}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding IntroAudioDisplay}" Foreground="{StaticResource TextHi}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                                <Button Grid.Column="2" Content="CHOOSE…" Command="{Binding SelectIntroAudioCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,0"/>
+                                <Button Grid.Column="3" Content="CLEAR" Command="{Binding ClearIntroAudioCommand}" Style="{StaticResource SmallButton}"/>
+                            </Grid>
+                            <TextBlock Grid.Row="4" Margin="0,8,0,0" TextWrapping="Wrap" Style="{StaticResource MicroLabel}" FontSize="10"
+                                       Text="With no video chosen, the built-in 12-second title sequence plays with its own synthesised theme. A chosen video plays instead; a chosen music file replaces the built-in theme or the video's own sound. Intro volume is in the Audio Mixer. Esc or SKIP ends it early."/>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- 5. TRANSITIONS -->
+                    <TabItem Header="TRANSITIONS">
+                        <Grid Margin="10,8,10,8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" TextWrapping="Wrap" Style="{StaticResource MicroLabel}" FontSize="10" Margin="0,0,0,8"
+                                       Text="Each source keeps its own effect (set it under Sources, or in the TRANSITION box above TAKE). Animated effects run 500 ms, Cut is instant. TEST plays the effect on a rehearsal card — the on-air scene is never touched."/>
+                            <UniformGrid Grid.Row="1" Columns="4" Rows="2">
+                                <UniformGrid.Resources>
+                                    <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                        <Setter Property="Margin" Value="3"/>
+                                        <Setter Property="FontSize" Value="11.5"/>
+                                    </Style>
+                                </UniformGrid.Resources>
+                                <Button Content="CUT · 0 ms" Click="OnTestTransitionClick" Tag="Cut"/>
+                                <Button Content="FADE" Click="OnTestTransitionClick" Tag="Fade"/>
+                                <Button Content="DISSOLVE" Click="OnTestTransitionClick" Tag="Dissolve"/>
+                                <Button Content="SLIDE LEFT" Click="OnTestTransitionClick" Tag="SlideLeft"/>
+                                <Button Content="SLIDE RIGHT" Click="OnTestTransitionClick" Tag="SlideRight"/>
+                                <Button Content="WIPE" Click="OnTestTransitionClick" Tag="Wipe"/>
+                                <Button Content="ZOOM" Click="OnTestTransitionClick" Tag="Zoom"/>
+                            </UniformGrid>
+                            <TextBlock Grid.Row="2" Text="{Binding TransitionPreviewStatus, StringFormat='Transition engine: {0}'}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource AccentCoral}" Margin="0,6,0,0"/>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- 6. OUTPUT SETUP & KEYS -->
+                    <TabItem Header="SETUP &amp; KEYS">
+                        <Grid Margin="12,10,12,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="PROJECTOR SETUP" FontWeight="Bold" FontSize="11" Foreground="{StaticResource TextHi}" Margin="0,0,0,6"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="11.5" LineHeight="19" Foreground="{StaticResource TextMid}"
+                                           Text="1. Connect the projector by HDMI.&#x0a;2. Press Win + P → Extend.&#x0a;3. Pick it in OUTPUT (top bar) and press LAUNCH PROJECTOR.&#x0a;4. The audience screen shows no controls or cursor."/>
+                                <Button Content="REFRESH MONITORS" Command="{Binding RefreshDisplaysCommand}" Style="{StaticResource SmallButton}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="KEYBOARD" FontWeight="Bold" FontSize="11" Foreground="{StaticResource TextHi}" Margin="0,0,0,6"/>
+                                <TextBlock FontSize="11.5" LineHeight="20" Foreground="{StaticResource TextMid}">
+                                    <Run Text="F5" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="   TAKE Preview to Program"/><LineBreak/>
+                                    <Run Text="F6" FontFamily="Consolas" FontWeight="Bold" Foreground="#4A93F0"/><Run Text="   Toggle standby slate"/><LineBreak/>
+                                    <Run Text="F7" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="   Breaking news live"/><LineBreak/>
+                                    <Run Text="Space" FontFamily="Consolas" FontWeight="Bold"/><Run Text="  Play / pause program video"/><LineBreak/>
+                                    <Run Text="Esc" FontFamily="Consolas" FontWeight="Bold"/><Run Text="   Emergency standby"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </TabItem>
+                </TabControl>
+            </Border>
+
+            <!-- ======================= CONTROLS ======================= -->
+            <Border Grid.Column="6" Style="{StaticResource Dock}">
+                <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="26"/>
                         <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-
-                    <!-- Add Ticker Item Form -->
-                    <Border Grid.Row="0" Background="{StaticResource NavyCard}" CornerRadius="4" Padding="12" Margin="0,0,0,10">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Grid.Column="0" Text="Category:" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
-                            <TextBox Grid.Column="1" Text="{Binding NewTickerItemCategory, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,12,0"/>
-
-                            <TextBlock Grid.Column="2" Text="Headline Text:" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
-                            <TextBox Grid.Column="3" Text="{Binding NewTickerItemText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,12,0"/>
-
-                            <Button Grid.Column="4" Content="➕ ADD ITEM" Command="{Binding AddTickerItemCommand}" Style="{StaticResource PrimaryButton}"/>
-                        </Grid>
+                    <Border Grid.Row="0" Style="{StaticResource DockHeader}">
+                        <TextBlock Text="CONTROLS" Style="{StaticResource DockTitle}"/>
                     </Border>
+                    <StackPanel Grid.Row="1" Margin="10,8,10,8">
+                        <!-- Breaking news -->
+                        <Border Background="#2A050B" BorderBrush="#7E1220" BorderThickness="1" Padding="8" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="BREAKING NEWS" FontFamily="{StaticResource FontHead}" FontWeight="ExtraBold" FontSize="11" Foreground="#FF6B6B" Margin="0,0,0,5"/>
+                                <TextBox Text="{Binding QuickBreakingHeadline, UpdateSourceTrigger=PropertyChanged}" FontWeight="Bold" Padding="5,3" Margin="0,0,0,4" TextWrapping="Wrap" MaxHeight="40" ToolTip="Breaking headline"/>
+                                <TextBox Text="{Binding QuickBreakingSubtitle, UpdateSourceTrigger=PropertyChanged}" FontSize="11" Padding="5,3" Margin="0,0,0,6" ToolTip="Breaking detail"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="4"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Button Content="CUE" Command="{Binding QuickBreakingPreviewCommand}" Style="{StaticResource SmallButton}" ToolTip="Cue as a full-screen breaking slide"/>
+                                    <Button Grid.Column="2" Content="BREAKING LIVE  F7" Command="{Binding QuickBreakingLiveCommand}" Style="{StaticResource SmallPrimary}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
 
-                    <!-- Ticker Items DataGrid -->
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding TickerDraftItems}" 
-                              AutoGenerateColumns="False" 
-                              IsReadOnly="False"
-                              Background="{StaticResource NavyDark}" 
-                              RowBackground="{StaticResource NavyCard}"
-                              AlternatingRowBackground="{StaticResource NavyDark}"
-                              Foreground="{StaticResource TextLight}"
-                              BorderBrush="{StaticResource NavyBorder}"
-                              HeadersVisibility="Column">
-                        <DataGrid.Columns>
-                            <DataGridCheckBoxColumn Header="Active" Binding="{Binding IsActive}" Width="60"/>
-                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="140"/>
-                            <DataGridTextColumn Header="Ticker Headline Text" Binding="{Binding Text}" Width="4*"/>
-                            <DataGridTemplateColumn Width="100">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Button Content="DELETE" Command="{Binding DataContext.DeleteTickerItemCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryButton}" Padding="8,2"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-
-                    <!-- Ticker Styling & Publish Bar -->
-                    <Border Grid.Row="2" Background="{StaticResource NavyCard}" CornerRadius="4" Padding="12" Margin="0,10,0,0">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <CheckBox Grid.Column="0" Content="Urgent Breaking Style (Red Ribbon)" IsChecked="{Binding DraftTickerConfig.IsBreakingStyle}" Foreground="White" VerticalAlignment="Center" Margin="0,0,16,0"/>
-                            <Button Grid.Column="1" Content="⏸ PAUSE / RESUME SCROLL" Command="{Binding ToggleTickerPauseCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,12,0"/>
-
-                            <!-- Prominent Publish Ticker Button -->
-                            <Button Grid.Column="4" Content="📢 PUBLISH TICKER TO AIR" Command="{Binding PublishTickerCommand}" Style="{StaticResource PrimaryButton}" FontSize="14" Padding="20,8"/>
+                        <!-- Intro -->
+                        <TextBlock Text="INTRO SEQUENCE" Style="{StaticResource FieldLabel}"/>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="4"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button Content="▶ PLAY INTRO" Command="{Binding PlayIntroCommand}" Style="{StaticResource SmallPrimary}"/>
+                            <Button Grid.Column="2" Content="SKIP" Command="{Binding SkipIntroCommand}" Style="{StaticResource SmallButton}"/>
                         </Grid>
-                    </Border>
-                </Grid>
-            </TabItem>
+                        <TextBlock Text="{Binding IntroStatusText}" FontSize="10.5" Foreground="{StaticResource TextMuted}" TextTrimming="CharacterEllipsis" Margin="0,0,0,10"/>
 
-            <!-- TAB 5: TRANSITIONS MANAGER & TEST -->
-            <TabItem Header="⚡ TRANSITIONS MANAGER">
-                <Grid Margin="16">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                        <TextBlock Text="BROADCAST TRANSITION ENGINE" FontWeight="Bold" FontSize="18" Foreground="{StaticResource AccentCyan}"/>
-                        <TextBlock Text="All animated transitions run at exactly 500 milliseconds. Cut transitions run instantaneously (0 milliseconds)." 
-                                   Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                        <!-- Quick overlay actions -->
+                        <TextBlock Text="QUICK" Style="{StaticResource FieldLabel}"/>
+                        <UniformGrid Columns="2">
+                            <Button Content="SPEAKERS" Command="{Binding ShowSpeakersCommand}" Style="{StaticResource SmallButton}" Margin="0,0,2,4"/>
+                            <Button Content="HIDE" Command="{Binding HideSpeakersCommand}" Style="{StaticResource SmallButton}" Margin="2,0,0,4"/>
+                            <Button Content="VO START" Command="{Binding StartVoiceOverCommand}" Style="{StaticResource SmallButton}" Margin="0,0,2,4"/>
+                            <Button Content="VO STOP" Command="{Binding StopVoiceOverCommand}" Style="{StaticResource SmallButton}" Margin="2,0,0,4"/>
+                            <Button Content="CLEAR L3" Command="{Binding ClearLiveHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="0,0,2,0"/>
+                            <Button Content="TICKER ↑" Command="{Binding PublishTickerCommand}" Style="{StaticResource SmallButton}" Margin="2,0,0,0" ToolTip="Publish the ticker draft to air"/>
+                        </UniformGrid>
                     </StackPanel>
-
-                    <!-- Transition Cards Grid -->
-                    <UniformGrid Grid.Row="1" Columns="4" Rows="2">
-                        <!-- Cut -->
-                        <Border Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="1" CornerRadius="6" Margin="6" Padding="12">
-                            <StackPanel>
-                                <TextBlock Text="1. CUT" FontWeight="ExtraBold" FontSize="16" Foreground="{StaticResource AccentRed}"/>
-                                <TextBlock Text="Duration: 0 ms" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
-                                <TextBlock Text="Immediately switches between outgoing and incoming scenes without intermediate frames." TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextLight}" Margin="0,0,0,12"/>
-                                <Button Content="TEST CUT" Click="OnTestTransitionClick" Tag="Cut" Style="{StaticResource SecondaryButton}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Fade -->
-                        <Border Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="1" CornerRadius="6" Margin="6" Padding="12">
-                            <StackPanel>
-                                <TextBlock Text="2. FADE" FontWeight="ExtraBold" FontSize="16" Foreground="{StaticResource AccentCyan}"/>
-                                <TextBlock Text="Duration: 500 ms" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
-                                <TextBlock Text="Fades outgoing scene to black in 250ms and incoming scene in from black in 250ms." TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextLight}" Margin="0,0,0,12"/>
-                                <Button Content="TEST FADE" Click="OnTestTransitionClick" Tag="Fade" Style="{StaticResource SecondaryButton}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Dissolve -->
-                        <Border Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="1" CornerRadius="6" Margin="6" Padding="12">
-                            <StackPanel>
-                                <TextBlock Text="3. DISSOLVE" FontWeight="ExtraBold" FontSize="16" Foreground="{StaticResource AccentCyan}"/>
-                                <TextBlock Text="Duration: 500 ms" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
-                                <TextBlock Text="Direct cross-blend between scenes without an intermediate black screen." TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextLight}" Margin="0,0,0,12"/>
-                                <Button Content="TEST DISSOLVE" Click="OnTestTransitionClick" Tag="Dissolve" Style="{StaticResource SecondaryButton}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Slide Left -->
-                        <Border Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="1" CornerRadius="6" Margin="6" Padding="12">
-                            <StackPanel>
-                                <TextBlock Text="4. SLIDE LEFT" FontWeight="ExtraBold" FontSize="16" Foreground="{StaticResource AccentCyan}"/>
-                                <TextBlock Text="Duration: 500 ms" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
-                                <TextBlock Text="Animates incoming scene from the right while moving outgoing scene to the left." TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextLight}" Margin="0,0,0,12"/>
-                                <Button Content="TEST SLIDE LEFT" Click="OnTestTransitionClick" Tag="SlideLeft" Style="{StaticResource SecondaryButton}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Slide Right -->
-                        <Border Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="1" CornerRadius="6" Margin="6" Padding="12">
-                            <StackPanel>
-                                <TextBlock Text="5. SLIDE RIGHT" FontWeight="ExtraBold" FontSize="16" Foreground="{StaticResource AccentCyan}"/>
-                                <TextBlock Text="Duration: 500 ms" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
-                                <TextBlock Text="Animates incoming scene from the left while moving outgoing scene to the right." TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextLight}" Margin="0,0,0,12"/>
-                                <Button Content="TEST SLIDE RIGHT" Click="OnTestTransitionClick" Tag="SlideRight" Style="{StaticResource SecondaryButton}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Wipe -->
-                        <Border Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="1" CornerRadius="6" Margin="6" Padding="12">
-                            <StackPanel>
-                                <TextBlock Text="6. WIPE" FontWeight="ExtraBold" FontSize="16" Foreground="{StaticResource AccentCyan}"/>
-                                <TextBlock Text="Duration: 500 ms" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
-                                <TextBlock Text="Progressively reveals incoming scene across the screen with hardware clipping." TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextLight}" Margin="0,0,0,12"/>
-                                <Button Content="TEST WIPE" Click="OnTestTransitionClick" Tag="Wipe" Style="{StaticResource SecondaryButton}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Zoom -->
-                        <Border Background="{StaticResource NavyCard}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="1" CornerRadius="6" Margin="6" Padding="12">
-                            <StackPanel>
-                                <TextBlock Text="7. ZOOM" FontWeight="ExtraBold" FontSize="16" Foreground="{StaticResource AccentCyan}"/>
-                                <TextBlock Text="Duration: 500 ms" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
-                                <TextBlock Text="Scale zoom animation cleanly transitioning incoming scene forward." TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextLight}" Margin="0,0,0,12"/>
-                                <Button Content="TEST ZOOM" Click="OnTestTransitionClick" Tag="Zoom" Style="{StaticResource SecondaryButton}"/>
-                            </StackPanel>
-                        </Border>
-                    </UniformGrid>
-
-                    <Border Grid.Row="2" Background="{StaticResource NavyCard}" CornerRadius="4" Padding="12" Margin="0,10,0,0">
-                        <TextBlock Text="{Binding TransitionPreviewStatus, StringFormat='Transition Engine Status: {0}'}" 
-                                   FontWeight="SemiBold" Foreground="{StaticResource AccentCyan}"/>
-                    </Border>
                 </Grid>
-            </TabItem>
-
-            <!-- TAB 6: DISPLAYS & KEYBOARD SHORTCUTS -->
-            <TabItem Header="⚙ DISPLAYS &amp; SHORTCUTS">
-                <Grid Margin="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <Border Grid.Column="0" Background="{StaticResource NavyCard}" CornerRadius="6" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="HDMI PROJECTOR &amp; EXTENDED DISPLAY" FontWeight="Bold" FontSize="16" Foreground="{StaticResource AccentCyan}" Margin="0,0,0,12"/>
-                            <TextBlock Text="Windows Extended Display Configuration:" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <TextBlock Text="1. Connect HDMI cable between laptop and projector.&#x0a;2. In Windows Display Settings, select 'Extend these displays' (Win + P).&#x0a;3. Select the projector from the dropdown above and click 'LAUNCH PROJECTOR'.&#x0a;4. The broadcast window opens borderless fullscreen on the projector with all controls hidden." 
-                                       TextWrapping="Wrap" Foreground="{StaticResource TextLight}" LineHeight="20" Margin="0,0,0,16"/>
-
-                            <Button Content="REFRESH DETECTED MONITORS" Command="{Binding RefreshDisplaysCommand}" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left"/>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Column="2" Background="{StaticResource NavyCard}" CornerRadius="6" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="OPERATOR KEYBOARD SHORTCUTS" FontWeight="Bold" FontSize="16" Foreground="{StaticResource AccentCyan}" Margin="0,0,0,12"/>
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="F5" FontWeight="Bold" Foreground="{StaticResource AccentRed}"/>
-                                <TextBlock Grid.Column="1" Text="TAKE LIVE (Switches prepared preview content to on-air)"/>
-                            </Grid>
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="F6" FontWeight="Bold" Foreground="{StaticResource AccentCyan}"/>
-                                <TextBlock Grid.Column="1" Text="TOGGLE STANDBY (Switches to broadcast station testcard)"/>
-                            </Grid>
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="F7" FontWeight="Bold" Foreground="{StaticResource AccentRed}"/>
-                                <TextBlock Grid.Column="1" Text="TAKE BREAKING NEWS LIVE"/>
-                            </Grid>
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Space" FontWeight="Bold" Foreground="White"/>
-                                <TextBlock Grid.Column="1" Text="PLAY / PAUSE current on-air video"/>
-                            </Grid>
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Esc" FontWeight="Bold" Foreground="White"/>
-                                <TextBlock Grid.Column="1" Text="EMERGENCY STANDBY"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-            </TabItem>
-
-        </TabControl>
+            </Border>
+        </Grid>
 
         <!-- ============================================================== -->
-        <!-- 5. BOTTOM SYSTEM STATUS NOTIFICATION BAR                       -->
+        <!-- 4. STATUS BAR                                                  -->
         <!-- ============================================================== -->
-        <Border Grid.Row="4" Background="{StaticResource NavyDark}" BorderBrush="{StaticResource NavyBorder}" BorderThickness="0,1,0,0" Padding="14,6">
+        <Border Grid.Row="3" Background="{StaticResource InkBase}" BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,1,0,0" Padding="12,0">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,12,0">
-                    <TextBlock Text="STATUS: " FontWeight="Bold" FontSize="11" Foreground="{StaticResource TextMuted}"/>
-                    <TextBlock Text="{Binding StatusNotification}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextLight}"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="STATUS" Style="{StaticResource MicroLabel}" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding StatusNotification}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMid}" TextTrimming="CharacterEllipsis" MaxWidth="1050"/>
                 </StackPanel>
-
-                <TextBlock Grid.Column="2" Text="NEWS DESK V1.0 • WINDOWS HDMI BROADCAST ENGINE" FontWeight="Bold" FontSize="10" Foreground="{StaticResource NavyLight}"/>
+                <TextBlock Text="F5 Take · F6 Standby · F7 Breaking · Space Play/Pause · Esc Emergency" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Foreground="{StaticResource TextDim}"/>
             </Grid>
         </Border>
 
-    </Grid>
+      </Grid>
+    </Viewbox>
 </Window>

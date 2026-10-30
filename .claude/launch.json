@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "broadcast-canvas",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", "NewsDesk.App/BroadcastCanvas"],
+      "port": 8765
+    }
+  ]
+}

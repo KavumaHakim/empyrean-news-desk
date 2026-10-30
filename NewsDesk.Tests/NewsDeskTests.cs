@@ -140,6 +140,95 @@ public class DatabaseServiceTests : IDisposable
         Assert.Equal("Display2", val);
     }
 
+    [Fact]
+    public void MediaCaption_RoundTrips_ThroughAddAndUpdate()
+    {
+        var item = new MediaItem
+        {
+            Title = "Head Prefect Portrait",
+            FilePath = "C:\\dummy\\prefect.jpg",
+            CaptionName = "Amina Okello",
+            CaptionTitle = "Head Prefect"
+        };
+        int id = _db.AddMedia(item);
+
+        var retrieved = _db.GetMediaById(id);
+        Assert.NotNull(retrieved);
+        Assert.Equal("Amina Okello", retrieved.CaptionName);
+        Assert.Equal("Head Prefect", retrieved.CaptionTitle);
+        Assert.True(retrieved.IsImage);
+
+        retrieved.CaptionTitle = "Class Captain";
+        _db.UpdateMedia(retrieved);
+        Assert.Equal("Class Captain", _db.GetAllMedia().Single(m => m.Id == id).CaptionTitle);
+    }
+
+    [Fact]
+    public void OlderDatabase_GainsCaptionColumns_OnOpen()
+    {
+        // A database written by a build that predates captions
+        var oldPath = Path.Combine(Path.GetTempPath(), $"newsdesk_old_{Guid.NewGuid()}.db");
+        using (var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={oldPath}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"CREATE TABLE MediaItems (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT, Title TEXT NOT NULL, FilePath TEXT NOT NULL,
+                DurationSeconds REAL NOT NULL DEFAULT 0, Category TEXT NOT NULL DEFAULT 'National News',
+                AssignedTransition INTEGER NOT NULL DEFAULT 1, Description TEXT DEFAULT '',
+                IsAvailable INTEGER NOT NULL DEFAULT 1, CreatedAt TEXT NOT NULL);
+                INSERT INTO MediaItems (Title, FilePath, CreatedAt) VALUES ('Legacy', 'C:\\legacy.mp4', '2026-01-01T00:00:00Z');";
+            cmd.ExecuteNonQuery();
+        }
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var db = new DatabaseService(oldPath);
+        var legacy = db.GetAllMedia().Single(m => m.Title == "Legacy");
+        Assert.Equal(string.Empty, legacy.CaptionName);
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        try { File.Delete(oldPath); } catch { }
+    }
+
+    [Fact]
+    public void VoiceOverAndSpeakerConfigs_RoundTrip()
+    {
+        _db.SaveVoiceOverConfig(new VoiceOverConfig
+        {
+            AudioPath = "C:\\vo\\narration.mp3",
+            Name = "Mr. Kato",
+            Designation = "Class Teacher",
+            Volume = 0.8,
+            DuckLevel = 0.15,
+            ShowTag = false,
+            Loop = true
+        });
+        var vo = _db.GetVoiceOverConfig();
+        Assert.Equal("Mr. Kato", vo.Name);
+        Assert.Equal(0.15, vo.DuckLevel, 3);
+        Assert.False(vo.ShowTag);
+        Assert.True(vo.Loop);
+
+        _db.SaveSpeakerBoxConfig(2, new SpeakerBoxConfig
+        {
+            SourceKind = "camera",
+            CameraIndex = 1,
+            Name = "Guest Speaker",
+            Designation = "Alumni President",
+            PlayAudio = false
+        });
+        var box2 = _db.GetSpeakerBoxConfig(2);
+        Assert.Equal("camera", box2.SourceKind);
+        Assert.Equal(1, box2.CameraIndex);
+        Assert.Equal("Alumni President", box2.Designation);
+        Assert.False(box2.PlayAudio);
+        Assert.True(box2.HasSource);
+
+        // Untouched box keeps defaults
+        var box1 = _db.GetSpeakerBoxConfig(1);
+        Assert.Equal("none", box1.SourceKind);
+        Assert.False(box1.HasSource);
+    }
+
     public void Dispose()
     {
         _db.Dispose();
@@ -220,6 +309,71 @@ public class BroadcastStateManagerTests : IDisposable
     }
 
     [Fact]
+    public void CueingGraphic_ReplacesCuedMedia_AndViceVersa()
+    {
+        var media = new MediaItem { Id = 3, Title = "Cued Video", FilePath = "C:\\cued.mp4" };
+        var graphic = new HeadlineDraft { Title = "Cued Slide" };
+
+        _stateManager.SelectPreviewMedia(media);
+        _stateManager.SelectPreviewGraphic(graphic);
+        Assert.Null(_stateManager.State.PreviewMedia);
+        Assert.Equal("Cued Slide", _stateManager.State.PreviewGraphic?.Title);
+
+        _stateManager.SelectPreviewMedia(media);
+        Assert.Null(_stateManager.State.PreviewGraphic);
+        Assert.Equal("Cued Video", _stateManager.State.PreviewMedia?.Title);
+    }
+
+    [Fact]
+    public void TakeLive_AfterCueingGraphicOverVideo_PutsGraphicOnAir()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var video = new MediaItem { Id = 11, Title = "Old Video", FilePath = tempFile, AssignedTransition = TransitionType.Zoom };
+            var slide = new HeadlineDraft { Title = "Full Screen Slide" };
+
+            // Video goes on air, then operator cues a graphic slide
+            _stateManager.SelectPreviewMedia(video);
+            Assert.True(_stateManager.ExecuteTakeLive());
+            _stateManager.CompleteTransition();
+
+            _stateManager.SelectPreviewMedia(video);
+            _stateManager.SelectPreviewGraphic(slide);
+            Assert.True(_stateManager.ExecuteTakeLive());
+
+            Assert.Null(_stateManager.State.OnAirMedia);
+            Assert.Equal("Full Screen Slide", _stateManager.State.OnAirGraphic?.Title);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void TakeLive_Video_ClearsOnAirGraphic()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            _stateManager.SelectPreviewGraphic(new HeadlineDraft { Title = "Slide" });
+            Assert.True(_stateManager.ExecuteTakeLive());
+            _stateManager.CompleteTransition();
+
+            _stateManager.SelectPreviewMedia(new MediaItem { Id = 12, Title = "Next Video", FilePath = tempFile });
+            Assert.True(_stateManager.ExecuteTakeLive());
+
+            Assert.Null(_stateManager.State.OnAirGraphic);
+            Assert.Equal("Next Video", _stateManager.State.OnAirMedia?.Title);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public void TickerDraft_DoesNotAffectLiveTicker_UntilPublished()
     {
         var initialLiveItems = new List<TickerItem>
@@ -246,6 +400,34 @@ public class BroadcastStateManagerTests : IDisposable
         Assert.True(_stateManager.State.LiveTickerConfig.IsBreakingStyle);
     }
 
+    [Fact]
+    public void Standby_StopsVoiceOver_ButKeepsSpeakerWindowsState()
+    {
+        _stateManager.SetStandby(false);
+        _stateManager.SetVoiceOverActive(true);
+        _stateManager.SetSpeakersLive(true);
+
+        _stateManager.SetStandby(true);
+
+        Assert.False(_stateManager.State.IsVoiceOverActive);
+        Assert.True(_stateManager.State.AreSpeakersLive);
+    }
+
+    [Fact]
+    public void Overlays_DoNotChangeOnAirOrPreviewContent()
+    {
+        var picture = new MediaItem { Id = 7, Title = "Class Photo", FilePath = "C:\\photo.png", CaptionName = "Class of 2026" };
+        _stateManager.SelectPreviewMedia(picture);
+
+        _stateManager.SetVoiceOverActive(true);
+        _stateManager.SetSpeakersLive(true);
+        _stateManager.SetSceneCaptionVisible(false);
+
+        Assert.Same(picture, _stateManager.State.PreviewMedia);
+        Assert.Null(_stateManager.State.OnAirMedia);
+        Assert.False(_stateManager.State.IsSceneCaptionVisible);
+    }
+
     public void Dispose()
     {
         _db.Dispose();
@@ -265,6 +447,10 @@ public class MediaHttpServerTests
     [InlineData("index.html", "text/html; charset=utf-8")]
     [InlineData("style.css", "text/css; charset=utf-8")]
     [InlineData("app.js", "application/javascript; charset=utf-8")]
+    [InlineData("portrait.webp", "image/webp")]
+    [InlineData("photo.JPG", "image/jpeg")]
+    [InlineData("narration.m4a", "audio/mp4")]
+
     public void MimeTypes_AreCorrectlyResolved(string filename, string expectedMime)
     {
         string mime = MediaHttpServer.GetMimeType(filename);
