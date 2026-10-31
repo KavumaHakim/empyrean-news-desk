@@ -323,7 +323,7 @@ public class MainViewModel : ViewModelBase
     [
         new("opening_headline", "Opening headline (Graphics Studio draft)"),
         new("first_story", "First rundown story"),
-        new("all_headlines", "All headlines screen (over the first headline's media)"),
+        new("all_headlines", "All headlines screen"),
         new("standby", "Back to standby slate")
     ];
 
@@ -2477,12 +2477,6 @@ public class MainViewModel : ViewModelBase
                 CueStory(firstStory);
                 _manualCueSinceTake = true;
                 break;
-            case "all_headlines" when HeadlineSequence.FirstOrDefault(h => h.InHeadlines && h.MediaItem != null)?.MediaItem is { } boardMedia:
-                // The media framed beside the list; no story lower third, the list already says it all
-                _cuedStory = null;
-                PreparePreview(boardMedia);
-                _manualCueSinceTake = true;
-                break;
         }
 
         _introActionOverride = null;
@@ -2527,16 +2521,9 @@ public class MainViewModel : ViewModelBase
         bool hasCue = _stateManager.State.PreviewMedia != null || _stateManager.State.PreviewGraphic != null;
         if (action == "all_headlines" && HeadlineCount > 0)
         {
-            if (hasCue)
-            {
-                TakeLive();
-            }
-            else
-            {
-                // No headline has media: the list still comes up, over the studio backdrop
-                _stateManager.SetStandby(false);
-                SendCanvasCommand("toggle_standby", false);
-            }
+            // Text-only page over the studio backdrop: lift the slate and bring up the list
+            _stateManager.SetStandby(false);
+            SendCanvasCommand("toggle_standby", false);
             ShowHeadlinesBoard();
             IntroStatusText = "Intro finished — all headlines on screen";
         }

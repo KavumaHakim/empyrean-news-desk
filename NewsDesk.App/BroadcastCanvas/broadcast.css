@@ -2044,3 +2044,31 @@ body.side-layout .scene-image { object-fit: contain; }
     from { transform: translateX(0); }
     to   { transform: translateX(-50%); }
 }
+
+/* All-headlines page: text only — no picture or video frame, the list uses the width */
+body.side-board #layer-scenes {
+    opacity: 0;
+    visibility: hidden;
+}
+
+body.side-board .side-panel {
+    width: auto;
+    right: var(--edge-x);
+}
+
+body.side-board .side-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+body.side-board .side-list.two-col {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 64px;
+    row-gap: 22px;
+}
+
+body.side-board .side-item-title { font-size: 40px; }
+body.side-board .side-item-caption { font-size: 24px; }
+body.side-board .side-num { width: 58px; height: 58px; font-size: 30px; }
+body.side-board .side-list li { grid-template-columns: 58px 1fr; }

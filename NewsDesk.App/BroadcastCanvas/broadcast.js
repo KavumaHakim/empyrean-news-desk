@@ -1280,7 +1280,7 @@
     }
 
     function closeSidePanel() {
-        document.body.classList.remove('side-layout');
+        document.body.classList.remove('side-layout', 'side-board');
         sidePanel.classList.add('hidden');
         fitSideFrame(null); // back to full screen
     }
@@ -1327,6 +1327,7 @@
 
     function showHeadlineSide(data) {
         data = data || {};
+        document.body.classList.remove('side-board'); // one headline: its media sits in the frame
         sideTag.textContent = data.tag || 'HEADLINES';
         sideCount.textContent = data.total > 1 ? `${data.number} / ${data.total}` : '';
         sideTitle.textContent = data.title || '';
@@ -1345,7 +1346,10 @@
         sideCount.textContent = '';
         sideSingle.classList.add('hidden');
         sideList.classList.remove('hidden');
-        sideList.classList.toggle('dense', items.length > 7); // up to 7 fit at full size
+        // Text only: the media frame hides and the list takes the width (two columns from 6 on)
+        document.body.classList.add('side-board');
+        sideList.classList.toggle('two-col', items.length > 5);
+        sideList.classList.toggle('dense', items.length > 12);
         sideList.innerHTML = items.map((item, i) => `
             <li style="animation-delay:${200 + i * 140}ms">
                 <span class="side-num">${i + 1}</span>
