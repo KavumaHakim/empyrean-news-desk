@@ -99,6 +99,17 @@ public class DatabaseService : IDisposable
                 CreatedAt TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS HeadlineSequence (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                OrderIndex INTEGER NOT NULL DEFAULT 0,
+                Title TEXT NOT NULL,
+                Subtitle TEXT NOT NULL DEFAULT '',
+                Category TEXT NOT NULL DEFAULT 'HEADLINES',
+                DurationSeconds INTEGER NOT NULL DEFAULT 8,
+                MediaItemId INTEGER NULL,
+                FOREIGN KEY(MediaItemId) REFERENCES MediaItems(Id) ON DELETE SET NULL
+            );
+
             CREATE TABLE IF NOT EXISTS TickerItems (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 Text TEXT NOT NULL,
@@ -658,6 +669,120 @@ public class DatabaseService : IDisposable
                 using var cmd = conn.CreateCommand();
                 cmd.Transaction = trans;
                 cmd.CommandText = "UPDATE PlaylistItems SET OrderIndex = $order WHERE Id = $id;";
+                cmd.Parameters.AddWithValue("$order", i);
+                cmd.Parameters.AddWithValue("$id", items[i].Id);
+                cmd.ExecuteNonQuery();
+            }
+            trans.Commit();
+        }
+        catch
+        {
+            trans.Rollback();
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Headline Sequence
+
+    /// <summary>
+    /// Returns the headlines segment in running order. Only MediaItemId is
+    /// loaded; the caller resolves it against its media library.
+    /// </summary>
+    public List<HeadlineSequenceItem> GetHeadlineSequence()
+    {
+        var list = new List<HeadlineSequenceItem>();
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT Id, OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId
+            FROM HeadlineSequence
+            ORDER BY OrderIndex ASC, Id ASC;
+        ";
+
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new HeadlineSequenceItem
+            {
+                Id = reader.GetInt32(0),
+                OrderIndex = reader.GetInt32(1),
+                Title = reader.GetString(2),
+                Subtitle = reader.GetString(3),
+                Category = reader.GetString(4),
+                DurationSeconds = reader.GetInt32(5),
+                MediaItemId = reader.IsDBNull(6) ? null : reader.GetInt32(6)
+            });
+        }
+        return list;
+    }
+
+    public int SaveHeadlineSequenceItem(HeadlineSequenceItem item)
+    {
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+
+        if (item.Id > 0)
+        {
+            cmd.CommandText = @"
+                UPDATE HeadlineSequence
+                SET OrderIndex = $order,
+                    Title = $title,
+                    Subtitle = $subtitle,
+                    Category = $category,
+                    DurationSeconds = $duration,
+                    MediaItemId = $mediaId
+                WHERE Id = $id;
+            ";
+            cmd.Parameters.AddWithValue("$id", item.Id);
+        }
+        else
+        {
+            cmd.CommandText = @"
+                INSERT INTO HeadlineSequence (OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId)
+                VALUES ($order, $title, $subtitle, $category, $duration, $mediaId);
+                SELECT last_insert_rowid();
+            ";
+        }
+
+        cmd.Parameters.AddWithValue("$order", item.OrderIndex);
+        cmd.Parameters.AddWithValue("$title", item.Title ?? string.Empty);
+        cmd.Parameters.AddWithValue("$subtitle", item.Subtitle ?? string.Empty);
+        cmd.Parameters.AddWithValue("$category", item.Category ?? string.Empty);
+        cmd.Parameters.AddWithValue("$duration", item.DurationSeconds);
+        cmd.Parameters.AddWithValue("$mediaId", (object?)item.MediaItemId ?? DBNull.Value);
+
+        if (item.Id > 0)
+        {
+            cmd.ExecuteNonQuery();
+            return item.Id;
+        }
+
+        item.Id = Convert.ToInt32(cmd.ExecuteScalar());
+        return item.Id;
+    }
+
+    public void DeleteHeadlineSequenceItem(int id)
+    {
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM HeadlineSequence WHERE Id = $id;";
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void UpdateHeadlineSequenceOrder(List<HeadlineSequenceItem> items)
+    {
+        using var conn = CreateConnection();
+        using var trans = conn.BeginTransaction();
+        try
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = trans;
+                cmd.CommandText = "UPDATE HeadlineSequence SET OrderIndex = $order WHERE Id = $id;";
                 cmd.Parameters.AddWithValue("$order", i);
                 cmd.Parameters.AddWithValue("$id", items[i].Id);
                 cmd.ExecuteNonQuery();

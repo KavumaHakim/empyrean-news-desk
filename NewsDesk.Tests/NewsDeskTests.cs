@@ -118,6 +118,36 @@ public class DatabaseServiceTests : IDisposable
     }
 
     [Fact]
+    public void HeadlineSequence_RoundTrips_Reorders_AndSurvivesMediaRemoval()
+    {
+        int mediaId = _db.AddMedia(new MediaItem { Title = "Flood aerials", FilePath = "C:\\dummy\\flood.jpg" });
+
+        var first = new HeadlineSequenceItem { Title = "FLOODS HIT THE VALLEY", Subtitle = "Roads closed", OrderIndex = 0, DurationSeconds = 6 };
+        first.MediaItemId = mediaId;
+        var second = new HeadlineSequenceItem { Title = "SCHOOL WINS FINAL", OrderIndex = 1 };
+        _db.SaveHeadlineSequenceItem(first);
+        _db.SaveHeadlineSequenceItem(second);
+        Assert.True(first.Id > 0 && second.Id > 0);
+
+        var loaded = _db.GetHeadlineSequence();
+        Assert.Equal(["FLOODS HIT THE VALLEY", "SCHOOL WINS FINAL"], loaded.Select(h => h.Title));
+        Assert.Equal(mediaId, loaded[0].MediaItemId);
+        Assert.Equal(6, loaded[0].DurationSeconds);
+        Assert.Null(loaded[1].MediaItemId);
+
+        _db.UpdateHeadlineSequenceOrder([second, first]);
+        Assert.Equal("SCHOOL WINS FINAL", _db.GetHeadlineSequence()[0].Title);
+
+        // Removing the picture keeps the headline, now without media
+        _db.DeleteMedia(mediaId);
+        var flood = _db.GetHeadlineSequence().Single(h => h.Id == first.Id);
+        Assert.Null(flood.MediaItemId);
+
+        _db.DeleteHeadlineSequenceItem(second.Id);
+        Assert.Single(_db.GetHeadlineSequence());
+    }
+
+    [Fact]
     public void TickerItem_CanBeAddedAndOrdered()
     {
         var item1 = new TickerItem { Text = "Ticker Item Alpha", Category = "NEWS", OrderIndex = 0 };

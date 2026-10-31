@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:NewsDesk.Core.Models;assembly=NewsDesk.Core"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:conv="clr-namespace:NewsDesk.App.Converters"
         Title="EMPYREAN NEWS — Studio"
         Height="920" Width="1500"
         MinHeight="600" MinWidth="1000"
@@ -344,6 +345,7 @@
              STUDIO LAYOUT (OBS-style): monitors on top, docks below
              ================================================================ -->
         <BooleanToVisibilityConverter x:Key="BoolVis"/>
+        <conv:ThumbnailConverter x:Key="Thumb"/>
 
         <!-- Dock: titled panel like OBS's Sources / Audio Mixer / Controls -->
         <Style x:Key="Dock" TargetType="Border">
@@ -1003,21 +1005,27 @@
                         </Grid>
                         <Grid Margin="0,0,0,5">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource LayerToggle}" Tag="{Binding IsHeadlinesPlaying}" Command="{Binding ToggleHeadlinesCommand}" ToolTip="Play the headlines segment / stop it"/>
+                            <TextBlock Grid.Column="1" Text="Headlines segment" Style="{StaticResource LayerName}"/>
+                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="1"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <Button Style="{StaticResource LayerToggle}" Tag="{Binding IsTickerVisible}" Command="{Binding ToggleTickerVisibleCommand}"/>
                             <TextBlock Grid.Column="1" Text="News ticker" Style="{StaticResource LayerName}"/>
-                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="1"/>
+                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="2"/>
                         </Grid>
                         <Grid Margin="0,0,0,5">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <Button Style="{StaticResource LayerToggle}" Tag="{Binding IsVoiceOverActive}" Command="{Binding ToggleVoiceOverCommand}"/>
                             <TextBlock Grid.Column="1" Text="Voice-over" Style="{StaticResource LayerName}"/>
-                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="2"/>
+                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="3"/>
                         </Grid>
                         <Grid Margin="0,0,0,5">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <Button Style="{StaticResource LayerToggle}" Tag="{Binding AreSpeakersLive}" Command="{Binding ToggleSpeakersCommand}"/>
                             <TextBlock Grid.Column="1" Text="Speaker windows (2)" Style="{StaticResource LayerName}"/>
-                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="3"/>
+                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="4"/>
                         </Grid>
                         <Grid Margin="0,0,0,5">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -1161,7 +1169,127 @@
                         </Grid>
                     </TabItem>
 
-                    <!-- 1. TICKER -->
+                    <!-- 1. HEADLINES SEGMENT: headlines in sequence, each over its own video or picture -->
+                    <TabItem Header="HEADLINES">
+                        <Grid Margin="10,8,10,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="250"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Running order -->
+                            <Grid Grid.Column="0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Select a video or picture in SOURCES, then + ADD. Headlines play top to bottom." Style="{StaticResource MicroLabel}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <DataGrid Grid.Row="1" ItemsSource="{Binding HeadlineSequence}"
+                                          SelectedItem="{Binding SelectedHeadlineItem}"
+                                          IsReadOnly="True" SelectionMode="Single" RowHeight="38">
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsOnAir}" Value="True">
+                                                    <Setter Property="Background" Value="#3A0A14"/>
+                                                    <Setter Property="BorderBrush" Value="{StaticResource AccentRed}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="28"/>
+                                        <DataGridTemplateColumn Header="MEDIA" Width="62">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Border Width="54" Height="30" Background="#0A1428" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" ToolTip="{Binding MediaLabel}">
+                                                        <Grid>
+                                                            <TextBlock Text="{Binding MediaItem.KindLabel, FallbackValue=SLIDE, TargetNullValue=SLIDE}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextDim}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            <Image Source="{Binding ThumbnailPath, Converter={StaticResource Thumb}}" Stretch="UniformToFill"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="HEADLINE" Width="*">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Title}" Foreground="{StaticResource TextHi}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding MediaLabel}" Foreground="{StaticResource TextMuted}" FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="SECS" Binding="{Binding DurationSeconds}" Width="44"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <WrapPanel Grid.Row="2" Margin="0,6,0,0">
+                                    <Button Content="+ ADD" Command="{Binding AddHeadlineItemCommand}" Style="{StaticResource SmallPrimary}" Margin="0,0,6,0" ToolTip="Add a headline over the source selected in SOURCES (or a plain headline slide)"/>
+                                    <Button Content="▲" Command="{Binding MoveHeadlineUpCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Move up"/>
+                                    <Button Content="▼" Command="{Binding MoveHeadlineDownCommand}" Style="{StaticResource SmallButton}" Margin="0,0,6,0" ToolTip="Move down"/>
+                                    <Button Content="CUE" Command="{Binding CueHeadlineItemCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,4,0" ToolTip="Show this headline's video or picture on the Preview monitor"/>
+                                    <Button Content="REMOVE" Command="{Binding RemoveHeadlineItemCommand}" Style="{StaticResource SmallButton}"/>
+                                </WrapPanel>
+                            </Grid>
+
+                            <!-- Selected headline + segment playback -->
+                            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedHeadlineItem}" Value="{x:Null}">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                        <Setter Property="Opacity" Value="0.45"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <TextBlock Text="Headline" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding SelectedHeadlineItem.Title, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" Margin="0,0,0,6" TextWrapping="Wrap" MaxHeight="44"/>
+                                        <TextBlock Text="Summary" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding SelectedHeadlineItem.Subtitle, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" Margin="0,0,0,6"/>
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/><ColumnDefinition Width="70"/></Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Tag" Style="{StaticResource FieldLabel}"/>
+                                                <TextBox Text="{Binding SelectedHeadlineItem.Category, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" ToolTip="Seconds on air. For a video, 0 plays the whole clip.">
+                                                <TextBlock Text="Seconds" Style="{StaticResource FieldLabel}"/>
+                                                <TextBox Text="{Binding SelectedHeadlineItem.DurationSeconds, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="Video / picture" Style="{StaticResource FieldLabel}"/>
+                                        <TextBlock Text="{Binding SelectedHeadlineItem.MediaLabel}" Foreground="{StaticResource TextHi}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                        <WrapPanel Margin="0,0,0,10">
+                                            <Button Content="USE SELECTED SOURCE" Command="{Binding UseSelectedMediaForHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,4" ToolTip="Use the video or picture selected in SOURCES"/>
+                                            <Button Content="NO MEDIA" Command="{Binding ClearHeadlineMediaCommand}" Style="{StaticResource SmallButton}" Margin="0,0,0,4" ToolTip="Show as a full-screen headline slide"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+
+                                    <TextBlock Text="PLAY SEGMENT" Style="{StaticResource FieldLabel}"/>
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="4"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <Button Content="▶ PLAY HEADLINES" Command="{Binding PlayHeadlinesCommand}" Style="{StaticResource SmallPrimary}" ToolTip="Take every headline live in order, from the top"/>
+                                        <Button Grid.Column="2" Content="■ STOP" Command="{Binding StopHeadlinesCommand}" Style="{StaticResource SmallButton}" ToolTip="End the segment and clear its lower third (the current shot stays on air)"/>
+                                    </Grid>
+                                    <UniformGrid Columns="2" Margin="0,0,0,6">
+                                        <Button Content="◀ PREV" Command="{Binding PreviousHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="0,0,2,0"/>
+                                        <Button Content="NEXT ▶" Command="{Binding NextHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="2,0,0,0"/>
+                                    </UniformGrid>
+                                    <CheckBox Content="Auto-advance (uses each headline's seconds)" IsChecked="{Binding HeadlinesAutoAdvance}" Margin="0,0,0,6"/>
+                                    <TextBlock Text="{Binding HeadlinesStatusText}" FontSize="10.5" Foreground="{StaticResource TextMuted}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- 2. TICKER -->
                     <TabItem Header="TICKER">
                         <Grid Margin="10,8,10,8">
                             <Grid.RowDefinitions>
@@ -1241,7 +1369,7 @@
                         </Grid>
                     </TabItem>
 
-                    <!-- 2. VOICE-OVER -->
+                    <!-- 3. VOICE-OVER -->
                     <TabItem Header="VOICE-OVER">
                         <Grid Margin="12,10,12,8">
                             <Grid.RowDefinitions>
@@ -1303,7 +1431,7 @@
                         </Grid>
                     </TabItem>
 
-                    <!-- 3. SPEAKER WINDOWS -->
+                    <!-- 4. SPEAKER WINDOWS -->
                     <TabItem Header="SPEAKERS">
                         <Grid Margin="10,8,10,8">
                             <Grid.RowDefinitions>
@@ -1379,7 +1507,7 @@
                         </Grid>
                     </TabItem>
 
-                    <!-- 4. INTRO & THEME -->
+                    <!-- 5. INTRO & THEME -->
                     <TabItem Header="INTRO">
                         <Grid Margin="12,10,12,8">
                             <Grid.RowDefinitions>
@@ -1418,7 +1546,7 @@
                         </Grid>
                     </TabItem>
 
-                    <!-- 5. TRANSITIONS -->
+                    <!-- 6. TRANSITIONS -->
                     <TabItem Header="TRANSITIONS">
                         <Grid Margin="10,8,10,8">
                             <Grid.RowDefinitions>
@@ -1447,7 +1575,7 @@
                         </Grid>
                     </TabItem>
 
-                    <!-- 6. OUTPUT SETUP & KEYS -->
+                    <!-- 7. OUTPUT SETUP & KEYS -->
                     <TabItem Header="SETUP &amp; KEYS">
                         <Grid Margin="12,10,12,8">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -1505,6 +1633,16 @@
                             <Button Grid.Column="2" Content="SKIP" Command="{Binding SkipIntroCommand}" Style="{StaticResource SmallButton}"/>
                         </Grid>
                         <TextBlock Text="{Binding IntroStatusText}" FontSize="10.5" Foreground="{StaticResource TextMuted}" TextTrimming="CharacterEllipsis" Margin="0,0,0,10"/>
+
+                        <!-- Headlines segment -->
+                        <TextBlock Text="HEADLINES" Style="{StaticResource FieldLabel}"/>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="4"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="4"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button Content="▶ PLAY" Command="{Binding PlayHeadlinesCommand}" Style="{StaticResource SmallPrimary}"/>
+                            <Button Grid.Column="2" Content="NEXT" Command="{Binding NextHeadlineCommand}" Style="{StaticResource SmallButton}"/>
+                            <Button Grid.Column="4" Content="■" Command="{Binding StopHeadlinesCommand}" Style="{StaticResource SmallButton}" ToolTip="Stop headlines"/>
+                        </Grid>
+                        <TextBlock Text="{Binding HeadlinesStatusText}" FontSize="10.5" Foreground="{StaticResource TextMuted}" TextTrimming="CharacterEllipsis" Margin="0,0,0,10"/>
 
                         <!-- Quick overlay actions -->
                         <TextBlock Text="QUICK" Style="{StaticResource FieldLabel}"/>
