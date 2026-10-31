@@ -521,11 +521,13 @@ body.on-graphic .station-chip { opacity: 0; }
     left: var(--edge-x);
     right: 37px;
     bottom: calc(var(--ticker-h) + var(--floor-h) + 34px);
-    padding-left: 22px;
+    display: flex;
+    align-items: stretch;
 }
 
 /* Red upright accent down the left edge */
 .lower-third-container::before {
+    display: none; /* the station logo now forms the left edge */
     content: "";
     position: absolute;
     left: 0;
@@ -538,7 +540,7 @@ body.on-graphic .station-chip { opacity: 0; }
 
 .lt-header-row {
     position: absolute;
-    left: 22px;
+    left: 168px; /* above the strap, clear of the logo */
     bottom: 100%;
     display: flex;
     gap: 0;
@@ -573,8 +575,51 @@ body.on-graphic .station-chip { opacity: 0; }
 }
 
 .lt-body-row {
+    flex: 1 1 auto;
+    min-width: 0;
     display: flex;
     flex-direction: column;
+}
+
+/* --- Station logo block at the left end of the lower third --- */
+.lt-logo {
+    flex: 0 0 168px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 0;
+    background: linear-gradient(180deg, var(--red-hi) 0%, var(--red) 55%, var(--red-deep) 100%);
+    box-shadow: inset -4px 0 0 rgba(255, 255, 255, 0.9), 0 8px 22px rgba(0, 0, 0, 0.25);
+    color: #FFFFFF;
+    animation: lt-logo-in 350ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.lt-logo-e {
+    width: 66px;
+    height: 66px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-head);
+    font-size: 52px;
+    line-height: 1;
+    box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.9);
+}
+
+.lt-logo-name {
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 17px;
+    line-height: 1.1;
+    letter-spacing: 2.5px;
+    text-align: center;
+}
+
+@keyframes lt-logo-in {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: none; }
 }
 
 .lt-title {
