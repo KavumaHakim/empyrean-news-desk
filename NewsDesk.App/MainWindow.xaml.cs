@@ -108,7 +108,7 @@ public partial class MainWindow : Window
         // Ignore if user is currently typing inside a TextBox
         if (e.OriginalSource is TextBox) return;
 
-        if (_viewModel.HandleShortcutKey(e.Key))
+        if (_viewModel.HandleShortcutKey(e.Key, Keyboard.Modifiers))
         {
             e.Handled = true;
         }

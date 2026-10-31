@@ -1357,6 +1357,62 @@
         openSidePanel();
     }
 
+    // ------------------------------------------------------------------
+    // SOUND EFFECTS: one player per pad so effects can overlap; firing a
+    // pad again restarts it from the top.
+    // ------------------------------------------------------------------
+    const sfxPlayers = {};
+
+    function playSfx(data) {
+        if (!data || !data.url) return;
+        const slot = Number(data.slot) || 0;
+        let player = sfxPlayers[slot];
+        if (!player) {
+            player = new Audio();
+            player.preload = 'auto';
+            player.addEventListener('ended', () => sendHostMessage('sfx_ended', { slot: slot }));
+            sfxPlayers[slot] = player;
+        }
+        if (player.dataset.url !== data.url) {
+            player.src = data.url;
+            player.dataset.url = data.url;
+        }
+        player.volume = clamp01(data.volume ?? 1);
+        player.currentTime = 0;
+        player.play().catch(() => {
+            sendHostMessage('overlay_error', { message: `Sound pad ${slot} could not play.` });
+            sendHostMessage('sfx_ended', { slot: slot });
+        });
+    }
+
+    function stopSfx(slot) {
+        Object.keys(sfxPlayers).forEach(key => {
+            if (slot && Number(key) !== Number(slot)) return;
+            const player = sfxPlayers[key];
+            if (!player.paused) sendHostMessage('sfx_ended', { slot: Number(key) });
+            player.pause();
+            player.currentTime = 0;
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // BREAKING NEWS TAKEOVER: full-screen red "BREAKING NEWS", no headline.
+    // ------------------------------------------------------------------
+    const breakingLayer = document.getElementById('layer-breaking');
+
+    function showBreakingTakeover() {
+        breakingLayer.classList.remove('bk-run');
+        void breakingLayer.offsetWidth; // restart the entrance every time
+        breakingLayer.classList.remove('hidden');
+        breakingLayer.classList.add('bk-run');
+        breakingLayer.setAttribute('aria-hidden', 'false');
+    }
+
+    function hideBreakingTakeover() {
+        breakingLayer.classList.add('hidden');
+        breakingLayer.setAttribute('aria-hidden', 'true');
+    }
+
     function toggleStandby(active) {
         isStandby = active;
         if (active) {
@@ -1476,6 +1532,18 @@
             case 'hide_speakers':
                 hideSpeakers();
                 break;
+            case 'play_sfx':
+                playSfx(msg.data);
+                break;
+            case 'stop_sfx':
+                stopSfx(msg.data);
+                break;
+            case 'show_breaking_takeover':
+                showBreakingTakeover();
+                break;
+            case 'hide_breaking_takeover':
+                hideBreakingTakeover();
+                break;
             case 'set_scene_captions':
                 document.body.classList.toggle('captions-off', !msg.data);
                 break;
@@ -1496,9 +1564,12 @@
         // standby above all) must still reach the control room.
         const shortcutKeys = ['Escape', 'F5', 'F6', 'F7', 'F8', 'F9', ' '];
         document.addEventListener('keydown', (e) => {
-            if (!shortcutKeys.includes(e.key) || e.repeat) return;
+            if (e.repeat) return;
+            // Ctrl+0…8 = sound pads; Shift+F7 = breaking takeover
+            const soundPad = e.ctrlKey && /^[0-8]$/.test(e.key);
+            if (!soundPad && !shortcutKeys.includes(e.key)) return;
             e.preventDefault();
-            sendHostMessage('key', { key: e.key });
+            sendHostMessage('key', { key: e.key, ctrl: e.ctrlKey, shift: e.shiftKey });
         });
         sendHostMessage('ready', { status: 'canvas_loaded' });
     }
@@ -1518,6 +1589,10 @@
         startVoiceOverFromProgram,
         stopVoiceOver,
         showSpeakers,
+        playSfx,
+        stopSfx,
+        showBreakingTakeover,
+        hideBreakingTakeover,
         showHeadlineSide,
         showHeadlinesBoard,
         closeSidePanel,

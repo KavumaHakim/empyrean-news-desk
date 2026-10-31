@@ -1830,3 +1830,217 @@ body.side-layout .station-chip { opacity: 1; }
 /* In the side frame the whole picture shows; the frame itself takes the media's shape */
 body.side-layout .scene-video,
 body.side-layout .scene-image { object-fit: contain; }
+
+/* ==========================================================================
+   BREAKING NEWS TAKEOVER (full screen, no headline)
+   Sits above the standby slate (z 250) and below the intro.
+   ========================================================================== */
+
+.breaking-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 250;
+    overflow: hidden;
+    transition: opacity 400ms ease;
+}
+
+.breaking-layer.hidden {
+    display: block !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.breaking-layer.hidden * { animation-play-state: paused !important; }
+
+.bk-bg {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(60% 70% at 50% 45%, #F0283A 0%, #C8102E 38%, #8E0A19 70%, #3E040B 100%);
+}
+
+/* Light stripes racing across the red */
+.bk-stripes {
+    position: absolute;
+    inset: -20%;
+    background: repeating-linear-gradient(-18deg,
+        rgba(255, 255, 255, 0) 0px, rgba(255, 255, 255, 0) 120px,
+        rgba(255, 255, 255, 0.10) 120px, rgba(255, 255, 255, 0.10) 150px,
+        rgba(255, 255, 255, 0) 150px, rgba(255, 255, 255, 0) 260px);
+    animation: bk-stripes 6s linear infinite;
+}
+
+@keyframes bk-stripes {
+    from { transform: translateX(0); }
+    to   { transform: translateX(520px); }
+}
+
+/* Globe turning slowly behind the lettering */
+.bk-globe {
+    position: absolute;
+    left: 1040px;
+    top: -60px;
+    width: 1180px;
+    height: 845px;
+    background: url("assets/globe-plate.png") no-repeat 0 0 / 100% 100%;
+    -webkit-mask-image: radial-gradient(circle 450px at 665px 474px, #000 96%, transparent 100%);
+    mask-image: radial-gradient(circle 450px at 665px 474px, #000 96%, transparent 100%);
+    filter: grayscale(1) brightness(1.6) contrast(1.1);
+    mix-blend-mode: soft-light;
+    opacity: 0.85;
+    transform-origin: 665px 474px;
+    animation: bk-globe 40s linear infinite;
+}
+
+@keyframes bk-globe {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* White hit as the takeover lands */
+.bk-flash {
+    position: absolute;
+    inset: 0;
+    background: #FFFFFF;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.breaking-layer.bk-run .bk-flash { animation: bk-flash 600ms ease-out both; }
+
+@keyframes bk-flash {
+    0%   { opacity: 0.95; }
+    100% { opacity: 0; }
+}
+
+.bk-logo {
+    position: absolute;
+    left: 96px;
+    top: 80px;
+    display: flex;
+    align-items: stretch;
+    height: 70px;
+    box-shadow: 0 10px 28px rgba(40, 0, 6, 0.45);
+}
+
+.bk-logo-e {
+    width: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #FFFFFF;
+    color: var(--red);
+    font-family: var(--font-head);
+    font-size: 54px;
+}
+
+.bk-logo-name {
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    background: var(--navy);
+    color: #FFFFFF;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 34px;
+    letter-spacing: 2px;
+}
+
+.bk-title {
+    position: absolute;
+    left: 96px;
+    top: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.bk-breaking {
+    font-family: var(--font-head);
+    font-weight: 900;
+    font-size: 250px;
+    line-height: 0.92;
+    letter-spacing: -4px;
+    color: #FFFFFF;
+    text-shadow: 0 14px 40px rgba(60, 0, 8, 0.55);
+}
+
+.bk-news {
+    margin-top: 18px;
+    padding: 6px 40px 10px;
+    background: #FFFFFF;
+    color: var(--red);
+    font-family: var(--font-head);
+    font-weight: 900;
+    font-size: 200px;
+    line-height: 0.95;
+    letter-spacing: 6px;
+    box-shadow: 0 18px 46px rgba(60, 0, 8, 0.45);
+}
+
+.breaking-layer.bk-run .bk-logo     { animation: bk-slide 500ms 150ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.breaking-layer.bk-run .bk-breaking { animation: bk-slam 600ms 250ms cubic-bezier(0.2, 0.9, 0.2, 1) both,
+                                                 bk-pulse 1.4s 1.2s ease-in-out infinite; }
+.breaking-layer.bk-run .bk-news     { animation: bk-wipe 550ms 550ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.breaking-layer.bk-run .bk-band     { animation: bk-rise 500ms 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes bk-slide {
+    from { opacity: 0; transform: translateX(-80px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes bk-slam {
+    from { opacity: 0; transform: scale(1.6); filter: blur(10px); }
+    to   { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes bk-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.72; }
+}
+
+@keyframes bk-wipe {
+    from { clip-path: inset(0 100% 0 0); }
+    to   { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes bk-rise {
+    from { transform: translateY(100%); }
+    to   { transform: none; }
+}
+
+/* Scrolling band along the bottom */
+.bk-band {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 70px;
+    height: 84px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    background: var(--navy);
+    border-top: 6px solid #FFFFFF;
+}
+
+.bk-band-track {
+    display: flex;
+    white-space: nowrap;
+    animation: bk-band 14s linear infinite;
+}
+
+.bk-band-track span {
+    padding: 0 40px;
+    color: #FFFFFF;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 40px;
+    letter-spacing: 6px;
+}
+
+.bk-band-track span:nth-child(even) { color: #FF5A68; }
+
+@keyframes bk-band {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+}

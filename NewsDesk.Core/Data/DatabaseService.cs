@@ -921,6 +921,30 @@ public class DatabaseService : IDisposable
         SetSetting("VO_Loop", config.Loop.ToString());
     }
 
+    /// <summary>Sound-effect pad settings, keyed by slot (1–8).</summary>
+    public SoundPad GetSoundPad(int slot)
+    {
+        var prefix = $"Sfx{slot}_";
+        var pad = new SoundPad
+        {
+            Slot = slot,
+            Name = GetSetting(prefix + "Name", string.Empty) ?? string.Empty,
+            FilePath = GetSetting(prefix + "Path", string.Empty) ?? string.Empty
+        };
+        if (double.TryParse(GetSetting(prefix + "Volume", "1.0"), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var volume))
+            pad.Volume = volume;
+        return pad;
+    }
+
+    public void SaveSoundPad(SoundPad pad)
+    {
+        var prefix = $"Sfx{pad.Slot}_";
+        SetSetting(prefix + "Name", pad.Name ?? string.Empty);
+        SetSetting(prefix + "Path", pad.FilePath ?? string.Empty);
+        SetSetting(prefix + "Volume", pad.Volume.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     /// <summary>Speaker box settings, keyed by box number (1 or 2).</summary>
     public SpeakerBoxConfig GetSpeakerBoxConfig(int box)
     {

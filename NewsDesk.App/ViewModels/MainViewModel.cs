@@ -66,6 +66,7 @@ public class MainViewModel : ViewModelBase
         private const int VoiceOverMediaId = 900_000_011;
         private const int SpeakerMediaIdBase = 900_000_020; // + box number
         private const int StoryVoiceOverMediaId = 900_000_012;
+        private const int SoundPadMediaIdBase = 900_000_100; // + slot
 
         // Camera formats (.mts, .cr3 …) are converted to playable copies before use
         private readonly MediaConverter _converter = new() { StillDecoder = WicStillDecoder.TryConvert };
@@ -549,6 +550,22 @@ public class MainViewModel : ViewModelBase
     // The speaker currently named on the story's lower third (null = headline only)
     private StorySpeaker? _storySpeaker;
 
+    // Sound effects: eight pads fired on air from their buttons or Ctrl+1…8
+    public ObservableCollection<SoundPad> SoundPads { get; } = [];
+    public RelayCommand PlaySoundPadCommand { get; }
+    public RelayCommand StopSoundsCommand { get; }
+    public RelayCommand ChooseSoundPadFileCommand { get; }
+    public RelayCommand ClearSoundPadCommand { get; }
+
+    // Full-screen BREAKING NEWS takeover (no headline)
+    private bool _isBreakingTakeoverLive;
+    public bool IsBreakingTakeoverLive
+    {
+        get => _isBreakingTakeoverLive;
+        private set => SetProperty(ref _isBreakingTakeoverLive, value);
+    }
+    public RelayCommand ToggleBreakingTakeoverCommand { get; }
+
     public RelayCommand ShowStorySpeakerCommand { get; }
     public RelayCommand StoryHeadlineOnlyCommand { get; }
 
@@ -668,6 +685,17 @@ public class MainViewModel : ViewModelBase
             PublishStoryLowerThird(story, speaker);
             StatusNotification = $"LOWER THIRD: {speaker.Label} — {story.ListTitle}";
         });
+        PlaySoundPadCommand = new RelayCommand(param => { if (param is SoundPad pad) PlaySoundPad(pad.Slot); });
+        StopSoundsCommand = new RelayCommand(StopSounds);
+        ChooseSoundPadFileCommand = new RelayCommand(param => { if (param is SoundPad pad) ChooseSoundPadFile(pad); });
+        ClearSoundPadCommand = new RelayCommand(param =>
+        {
+            if (param is not SoundPad pad) return;
+            pad.FilePath = string.Empty;
+            RegisterSoundPadMedia(pad);
+        });
+        ToggleBreakingTakeoverCommand = new RelayCommand(ToggleBreakingTakeover);
+
         StoryHeadlineOnlyCommand = new RelayCommand(() =>
         {
             if (SelectedHeadlineItem is not { } story) return;
@@ -814,6 +842,16 @@ public class MainViewModel : ViewModelBase
         ImportOldRundownIntoStories();
         RenumberHeadlines();
         _storyLowerThirdAuto = !bool.TryParse(_db.GetSetting("Stories_AutoLowerThird", "True"), out var autoL3) || autoL3;
+
+        // Sound pads
+        SoundPads.Clear();
+        for (int slot = 1; slot <= SoundPad.Count; slot++)
+        {
+            var pad = _db.GetSoundPad(slot);
+            pad.PropertyChanged += OnSoundPadChanged;
+            RegisterSoundPadMedia(pad);
+            SoundPads.Add(pad);
+        }
 
         // Load Ticker
         var ticker = _db.GetAllTickerItems();
@@ -1267,6 +1305,9 @@ public class MainViewModel : ViewModelBase
         // The next headline take would dismiss standby again: end the segment first
         if (newStandby && IsHeadlinesPlaying) StopHeadlines("Headlines stopped — standby.");
 
+        // The takeover sits above the slate: standby (F6 / Esc) must clear it
+        if (newStandby && IsBreakingTakeoverLive) HideBreakingTakeover();
+
         _stateManager.SetStandby(newStandby);
         SendCanvasCommand("toggle_standby", newStandby);
         StatusNotification = newStandby ? "STANDBY screen active on projector." : "Standby dismissed. Live broadcast active.";
@@ -1276,8 +1317,26 @@ public class MainViewModel : ViewModelBase
     /// Operator keyboard shortcuts, shared by the control room and the broadcast
     /// window so they work whichever window has focus. Returns true if handled.
     /// </summary>
-    public bool HandleShortcutKey(Key key)
+    public bool HandleShortcutKey(Key key, ModifierKeys modifiers = ModifierKeys.None)
     {
+        // Ctrl+1…8 fire the sound pads, Ctrl+0 stops them
+        if (modifiers.HasFlag(ModifierKeys.Control))
+        {
+            int digit = key is >= Key.D0 and <= Key.D9 ? key - Key.D0
+                : key is >= Key.NumPad0 and <= Key.NumPad9 ? key - Key.NumPad0
+                : -1;
+            if (digit == 0) { StopSounds(); return true; }
+            if (digit is >= 1 and <= SoundPad.Count) { PlaySoundPad(digit); return true; }
+            return false;
+        }
+
+        // Shift+F7: full-screen BREAKING NEWS takeover on / off
+        if (key == Key.F7 && modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            ToggleBreakingTakeover();
+            return true;
+        }
+
         switch (key)
         {
             case Key.F5:
@@ -1346,7 +1405,105 @@ public class MainViewModel : ViewModelBase
 
     #endregion
 
+    #region Sound Effects & Breaking Takeover
+
+    private void PlaySoundPad(int slot)
+    {
+        var pad = SoundPads.FirstOrDefault(p => p.Slot == slot);
+        if (pad == null) return;
+        if (!pad.HasSound)
+        {
+            StatusNotification = $"Sound pad {slot} is empty — load a sound in the SOUNDS tab.";
+            return;
+        }
+        if (!File.Exists(pad.FilePath))
+        {
+            StatusNotification = $"Sound pad {slot}: file not found ({pad.FilePath}).";
+            return;
+        }
+        if (_broadcastWindow == null)
+        {
+            StatusNotification = "Open the broadcast output (projector) to play sound effects.";
+            return;
+        }
+
+        SendCanvasCommand("play_sfx", new
+        {
+            slot = pad.Slot,
+            url = $"{_server.BaseUrl}media/{SoundPadMediaIdBase + pad.Slot}?v={File.GetLastWriteTimeUtc(pad.FilePath).Ticks}",
+            volume = pad.Volume
+        });
+        pad.IsPlaying = true;
+        StatusNotification = $"SOUND: {pad.Label} ({pad.Hotkey}).";
+    }
+
+    private void StopSounds()
+    {
+        SendCanvasCommand("stop_sfx");
+        foreach (var pad in SoundPads) pad.IsPlaying = false;
+        StatusNotification = "Sound effects stopped.";
+    }
+
+    private async void ChooseSoundPadFile(SoundPad pad)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = $"Choose a sound for pad {pad.Slot} ({pad.Hotkey})",
+            Filter = $"Sounds (or a video's sound)|{MediaConverter.DialogPattern(video: true, stills: false, audio: true)}|All Files (*.*)|*.*"
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        var playable = await ConvertForBroadcastAsync(dialog.FileName);
+        if (playable == null) return;
+
+        pad.FilePath = playable;
+        if (string.IsNullOrWhiteSpace(pad.Name)) pad.Name = Path.GetFileNameWithoutExtension(dialog.FileName);
+        RegisterSoundPadMedia(pad);
+        StatusNotification = $"Pad {pad.Slot} ({pad.Hotkey}): {pad.Label}.";
+    }
+
+    private void OnSoundPadChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is SoundPad pad && e.PropertyName is nameof(SoundPad.Name) or nameof(SoundPad.FilePath) or nameof(SoundPad.Volume))
+            _db.SaveSoundPad(pad);
+    }
+
+    private void RegisterSoundPadMedia(SoundPad pad)
+    {
+        int id = SoundPadMediaIdBase + pad.Slot;
+        _server.UnregisterMedia(id);
+        if (pad.HasSound) _server.RegisterApprovedMedia(id, pad.FilePath);
+    }
+
+    private void ToggleBreakingTakeover()
+    {
+        if (IsBreakingTakeoverLive) HideBreakingTakeover();
+        else ShowBreakingTakeover();
+    }
+
+    private void ShowBreakingTakeover()
+    {
+        if (_broadcastWindow == null)
+        {
+            StatusNotification = "Open the broadcast output (projector) before the BREAKING NEWS takeover.";
+            return;
+        }
+        SendCanvasCommand("show_breaking_takeover");
+        IsBreakingTakeoverLive = true;
+        StatusNotification = "BREAKING NEWS TAKEOVER on air — Shift+F7 (or the button) takes it off.";
+    }
+
+    private void HideBreakingTakeover()
+    {
+        SendCanvasCommand("hide_breaking_takeover");
+        IsBreakingTakeoverLive = false;
+        StatusNotification = "Breaking news takeover cleared.";
+    }
+
+    #endregion
+
     #region Rundown Stories
+
 
     // The rundown is the list of stories (HeadlineSequence). Each story is written once:
     // its headline + summary are the lower third when it airs, and the headlines
@@ -2804,6 +2961,7 @@ public class MainViewModel : ViewModelBase
                 }
                 if (_stateManager.State.AreSpeakersLive) ShowSpeakers();
                 if (IsHeadlinesBoardLive) ShowHeadlinesBoard();
+                if (IsBreakingTakeoverLive) SendCanvasCommand("show_breaking_takeover");
 
                 // Cue-before-launch fix: re-send anything already sitting in Preview so
                 // content cued before the projector opened is actually loaded on the canvas.
@@ -2880,9 +3038,17 @@ public class MainViewModel : ViewModelBase
             _dispatcher.Invoke(() => { if (IsDrivingCanvas(window)) StatusNotification = $"OVERLAY: {message}"; });
         };
 
-        window.ShortcutKeyPressed += (s, key) =>
+        window.SoundPadEnded += (s, slot) =>
         {
-            _dispatcher.Invoke(() => HandleShortcutKey(key));
+            _dispatcher.Invoke(() =>
+            {
+                if (SoundPads.FirstOrDefault(p => p.Slot == slot) is { } pad) pad.IsPlaying = false;
+            });
+        };
+
+        window.ShortcutKeyPressed += (s, args) =>
+        {
+            _dispatcher.Invoke(() => HandleShortcutKey(args.Key, args.Modifiers));
         };
 
         window.MediaEnded += (s, args) =>
@@ -2931,6 +3097,8 @@ public class MainViewModel : ViewModelBase
         if (_stateManager.State.AreSpeakersLive) _stateManager.SetSpeakersLive(false);
         IsHeadlinesBoardLive = false;
         _isHeadlineSideOn = false;
+        IsBreakingTakeoverLive = false;
+        foreach (var pad in SoundPads) pad.IsPlaying = false;
         if (_isIntroPlaying)
         {
             _isIntroPlaying = false;

@@ -79,6 +79,24 @@ public class StoryTests : IDisposable
     }
 
     [Fact]
+    public void SoundPads_SaveNameFileAndVolume_PerSlot()
+    {
+        _db.SaveSoundPad(new SoundPad { Slot = 3, Name = "Applause", FilePath = @"C:\sfx\applause.mp3", Volume = 0.6 });
+
+        var pad = _db.GetSoundPad(3);
+        Assert.Equal("Applause", pad.Name);
+        Assert.Equal(@"C:\sfx\applause.mp3", pad.FilePath);
+        Assert.Equal(0.6, pad.Volume, 3);
+        Assert.Equal("Ctrl+3", pad.Hotkey);
+        Assert.True(pad.HasSound);
+
+        var empty = _db.GetSoundPad(4);
+        Assert.False(empty.HasSound);
+        Assert.Equal("Pad 4", empty.Label);
+        Assert.Equal(1.0, empty.Volume, 3);
+    }
+
+    [Fact]
     public void ListTitle_FallsBackToMediaTitle_UntilAHeadlineIsWritten()
     {
         var story = new HeadlineSequenceItem { MediaItem = new MediaItem { Title = "CANDIDATES" } };

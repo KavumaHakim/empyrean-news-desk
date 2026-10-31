@@ -1118,7 +1118,7 @@
                 <TabControl Background="Transparent" BorderThickness="0" Padding="0" SelectedIndex="{Binding EditorTabIndex, Mode=TwoWay}">
                     <TabControl.Resources>
                         <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
-                            <Setter Property="Padding" Value="9,6"/>
+                            <Setter Property="Padding" Value="7,6"/>
                             <Setter Property="FontSize" Value="10.5"/>
                         </Style>
                     </TabControl.Resources>
@@ -1689,7 +1689,7 @@
                     </TabItem>
 
                     <!-- 7. OUTPUT SETUP & KEYS -->
-                    <TabItem Header="SETUP &amp; KEYS">
+                    <TabItem Header="SETUP">
                         <Grid Margin="12,10,12,8">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
@@ -1706,10 +1706,66 @@
                                     <Run Text="F7" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="   Breaking news live"/><LineBreak/>
                                     <Run Text="F8" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="   Theme intro to air (emergency filler)"/><LineBreak/>
                                     <Run Text="F9" FontFamily="Consolas" FontWeight="Bold" Foreground="#4A93F0"/><Run Text="   All headlines on screen / off"/><LineBreak/>
+                                    <Run Text="Shift+F7" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="  Full-screen BREAKING NEWS takeover"/><LineBreak/>
+                                    <Run Text="Ctrl+1…8" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF7A63"/><Run Text="  Sound pads (Ctrl+0 stops)"/><LineBreak/>
                                     <Run Text="Space" FontFamily="Consolas" FontWeight="Bold"/><Run Text="  Play / pause program video"/><LineBreak/>
                                     <Run Text="Esc" FontFamily="Consolas" FontWeight="Bold"/><Run Text="   Emergency standby"/>
                                 </TextBlock>
                             </StackPanel>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- 8. SOUND EFFECTS: eight pads, fired on air (Ctrl+1…8, Ctrl+0 stops) -->
+                    <TabItem Header="SOUNDS">
+                        <Grid Margin="10,8,10,8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                                <Button DockPanel.Dock="Right" Content="■ STOP SOUNDS  Ctrl+0" Command="{Binding StopSoundsCommand}" Style="{StaticResource SmallButton}"/>
+                                <TextBlock Text="Load a sound into each pad. Click ▶ or press Ctrl+number to play it through the projector output." Style="{StaticResource MicroLabel}" FontSize="10" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            </DockPanel>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding SoundPads}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource InkBase}" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" Padding="6,3" Margin="0,0,0,3">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="54"/>
+                                                        <ColumnDefinition Width="44"/>
+                                                        <ColumnDefinition Width="140"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="80"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Grid.Column="0" Content="▶" Command="{Binding DataContext.PlaySoundPadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Padding="4,1" Margin="0,0,6,0" ToolTip="Play on air">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button" BasedOn="{StaticResource SmallPrimary}">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                                                        <Setter Property="Content" Value="♪"/>
+                                                                        <Setter Property="Background" Value="#2E7DE1"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                    </Button>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Hotkey}" FontFamily="Consolas" FontSize="10.5" Foreground="{StaticResource AccentCoral}" VerticalAlignment="Center"/>
+                                                    <TextBox Grid.Column="2" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" Margin="0,0,6,0" ToolTip="Pad name (shown on its button)"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding FileLabel}" Foreground="{StaticResource TextMuted}" FontSize="10.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                    <Slider Grid.Column="4" Minimum="0" Maximum="1" Value="{Binding Volume}" VerticalAlignment="Center" Margin="0,0,6,0" ToolTip="Pad volume"/>
+                                                    <StackPanel Grid.Column="5" Orientation="Horizontal">
+                                                        <Button Content="LOAD…" Command="{Binding DataContext.ChooseSoundPadFileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Style="{StaticResource SmallButton}" Padding="6,1" FontSize="10" Margin="0,0,3,0"/>
+                                                        <Button Content="✕" Command="{Binding DataContext.ClearSoundPadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Style="{StaticResource SmallButton}" Padding="6,1" FontSize="10" ToolTip="Empty this pad"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
                         </Grid>
                     </TabItem>
                 </TabControl>
@@ -1737,8 +1793,21 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="4"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <Button Content="CUE" Command="{Binding QuickBreakingPreviewCommand}" Style="{StaticResource SmallButton}" ToolTip="Cue as a full-screen breaking slide"/>
-                                    <Button Grid.Column="2" Content="BREAKING LIVE  F7" Command="{Binding QuickBreakingLiveCommand}" Style="{StaticResource SmallPrimary}"/>
+                                    <Button Grid.Column="2" Content="LIVE  F7" Command="{Binding QuickBreakingLiveCommand}" ToolTip="Breaking headline as a lower third + red ticker (F7)" Style="{StaticResource SmallPrimary}"/>
                                 </Grid>
+                                <Button Command="{Binding ToggleBreakingTakeoverCommand}" Margin="0,4,0,0" ToolTip="Full-screen BREAKING NEWS, no headline (Shift+F7)">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource SmallPrimary}">
+                                            <Setter Property="Content" Value="TAKEOVER  Shift+F7"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsBreakingTakeoverLive}" Value="True">
+                                                    <Setter Property="Content" Value="■ END TAKEOVER"/>
+                                                    <Setter Property="Background" Value="#7E1220"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </StackPanel>
                         </Border>
 
@@ -1762,6 +1831,41 @@
                         <TextBlock Text="{Binding HeadlinesStatusText}" FontSize="10.5" Foreground="{StaticResource TextMuted}" TextTrimming="CharacterEllipsis" Margin="0,0,0,10"/>
 
                         <!-- Quick overlay actions -->
+                        <DockPanel Margin="0,0,0,2">
+                            <Button DockPanel.Dock="Right" Content="■ STOP" Command="{Binding StopSoundsCommand}" Style="{StaticResource SmallButton}" Padding="6,0" FontSize="9.5" ToolTip="Stop all sounds (Ctrl+0)"/>
+                            <TextBlock Text="SOUND FX  (Ctrl+1…8)" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <ItemsControl ItemsSource="{Binding SoundPads}" Margin="0,0,0,10">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding DataContext.PlaySoundPadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"
+                                            Margin="1" Padding="4,2" FontSize="10" ToolTip="{Binding Hotkey}">
+                                        <Button.Content>
+                                            <TextBlock TextTrimming="CharacterEllipsis">
+                                                <Run Text="{Binding Slot, Mode=OneWay}" Foreground="#FF7A63" FontWeight="Bold"/>
+                                                <Run Text="{Binding Label, Mode=OneWay}"/>
+                                            </TextBlock>
+                                        </Button.Content>
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                                        <Setter Property="Background" Value="#1B4E96"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding HasSound}" Value="False">
+                                                        <Setter Property="Opacity" Value="0.45"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
                         <TextBlock Text="QUICK" Style="{StaticResource FieldLabel}"/>
                         <UniformGrid Columns="2">
                             <Button Content="SPEAKERS" Command="{Binding ShowSpeakersCommand}" Style="{StaticResource SmallButton}" Margin="0,0,2,4"/>
@@ -1786,7 +1890,7 @@
                     <TextBlock Text="STATUS" Style="{StaticResource MicroLabel}" Margin="0,0,8,0"/>
                     <TextBlock Text="{Binding StatusNotification}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMid}" TextTrimming="CharacterEllipsis" MaxWidth="1050"/>
                 </StackPanel>
-                <TextBlock Text="F5 Take · F6 Standby · F7 Breaking · F8 Intro · F9 All headlines · Space Play/Pause · Esc Emergency" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Foreground="{StaticResource TextDim}"/>
+                <TextBlock Text="F5 Take · F6 Standby · F7 Breaking · F8 Intro · F9 All headlines · Shift+F7 Takeover · Ctrl+1…8 Sounds · Space Play/Pause · Esc Emergency" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Foreground="{StaticResource TextDim}"/>
             </Grid>
         </Border>
 

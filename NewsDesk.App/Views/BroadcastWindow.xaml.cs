@@ -33,7 +33,10 @@ public partial class BroadcastWindow : Window
     /// <summary>
     /// Operator shortcut pressed while this window had focus (forwarded to the control room).
     /// </summary>
-    public event EventHandler<Key>? ShortcutKeyPressed;
+    public event EventHandler<ShortcutKeyEventArgs>? ShortcutKeyPressed;
+
+    /// <summary>A sound pad finished (or was stopped); payload is its slot.</summary>
+    public event EventHandler<int>? SoundPadEnded;
 
     /// <summary>
     /// True when the output sits on the operator's primary screen (no projector):
@@ -74,10 +77,12 @@ public partial class BroadcastWindow : Window
         // other keys arrive from the canvas as "key" web messages.
         PreviewKeyDown += (s, e) =>
         {
-            if (e.Key is Key.Escape or Key.F5 or Key.F6 or Key.F7 or Key.F8 or Key.F9 or Key.Space)
+            bool soundPad = Keyboard.Modifiers.HasFlag(ModifierKeys.Control)
+                && e.Key is >= Key.D0 and <= Key.D8 or >= Key.NumPad0 and <= Key.NumPad8;
+            if (soundPad || e.Key is Key.Escape or Key.F5 or Key.F6 or Key.F7 or Key.F8 or Key.F9 or Key.Space)
             {
                 e.Handled = true;
-                if (!e.IsRepeat) ShortcutKeyPressed?.Invoke(this, e.Key);
+                if (!e.IsRepeat) ShortcutKeyPressed?.Invoke(this, new ShortcutKeyEventArgs(e.Key, Keyboard.Modifiers));
             }
         };
     }
@@ -183,8 +188,14 @@ public partial class BroadcastWindow : Window
             }
             else if (type == "key" && root.TryGetProperty("data", out var keyProp))
             {
-                Key? key = keyProp.GetProperty("key").GetString() switch
+                string keyName = keyProp.GetProperty("key").GetString() ?? "";
+                var modifiers = ModifierKeys.None;
+                if (keyProp.TryGetProperty("ctrl", out var ctrlProp) && ctrlProp.ValueKind == JsonValueKind.True) modifiers |= ModifierKeys.Control;
+                if (keyProp.TryGetProperty("shift", out var shiftProp) && shiftProp.ValueKind == JsonValueKind.True) modifiers |= ModifierKeys.Shift;
+
+                Key? key = keyName switch
                 {
+                    { Length: 1 } d when char.IsDigit(d[0]) => Key.D0 + (d[0] - '0'),
                     "Escape" => Key.Escape,
                     "F5" => Key.F5,
                     "F6" => Key.F6,
@@ -194,7 +205,7 @@ public partial class BroadcastWindow : Window
                     " " => Key.Space,
                     _ => null
                 };
-                if (key.HasValue) ShortcutKeyPressed?.Invoke(this, key.Value);
+                if (key.HasValue) ShortcutKeyPressed?.Invoke(this, new ShortcutKeyEventArgs(key.Value, modifiers));
             }
             else if (type == "timeupdate" && root.TryGetProperty("data", out var dataProp))
             {
@@ -235,6 +246,11 @@ public partial class BroadcastWindow : Window
                     ? (introMsg.GetString() ?? "Intro failed")
                     : "Intro failed";
                 IntroError?.Invoke(this, message);
+            }
+            else if (type == "sfx_ended" && root.TryGetProperty("data", out var sfxProp)
+                     && sfxProp.TryGetProperty("slot", out var slotProp) && slotProp.TryGetInt32(out var slot))
+            {
+                SoundPadEnded?.Invoke(this, slot);
             }
             else if (type == "vo_ended")
             {
@@ -331,3 +347,6 @@ public class ScenePreparedEventArgs : EventArgs
         Slot = slot;
     }
 }
+
+/// <summary>An operator shortcut with the modifier keys held (Ctrl+1 sound pad, Shift+F7 …).</summary>
+public record ShortcutKeyEventArgs(Key Key, ModifierKeys Modifiers);
