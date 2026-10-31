@@ -66,6 +66,9 @@ public class MainViewModel : ViewModelBase
         private const int VoiceOverMediaId = 900_000_011;
         private const int SpeakerMediaIdBase = 900_000_020; // + box number
 
+        // Camera formats (.mts, .cr3 …) are converted to playable copies before use
+        private readonly MediaConverter _converter = new() { StillDecoder = WicStillDecoder.TryConvert };
+
         // Voice-over & speaker windows (persisted in Settings)
         private VoiceOverConfig _voConfig = new();
         private readonly SpeakerBoxConfig[] _speakers = [new(), new()];
@@ -489,6 +492,7 @@ public class MainViewModel : ViewModelBase
     public RelayCommand ToggleVoiceOverCommand { get; }
     public RelayCommand StartVoiceOverCommand { get; }
     public RelayCommand StopVoiceOverCommand { get; }
+    public RelayCommand HoldProgramSoundCommand { get; }
     public RelayCommand SelectVoiceOverAudioCommand { get; }
     public RelayCommand ClearVoiceOverAudioCommand { get; }
 
@@ -663,6 +667,7 @@ public class MainViewModel : ViewModelBase
         ToggleVoiceOverCommand = new RelayCommand(() => { if (IsVoiceOverActive) StopVoiceOver(); else StartVoiceOver(); });
         StartVoiceOverCommand = new RelayCommand(StartVoiceOver);
         StopVoiceOverCommand = new RelayCommand(StopVoiceOver, () => IsVoiceOverActive);
+        HoldProgramSoundCommand = new RelayCommand(HoldProgramSound);
         SelectVoiceOverAudioCommand = new RelayCommand(SelectVoiceOverAudio);
         ClearVoiceOverAudioCommand = new RelayCommand(() => SetVoiceOverAudio(string.Empty));
 
@@ -822,38 +827,83 @@ public class MainViewModel : ViewModelBase
 
     #region Media & Playback Actions
 
-    private void ImportVideo()
+    private const string AllMediaFilterLabel = "Videos & Pictures (incl. camera .mts, .cr3 …)";
+
+    private async void ImportVideo()
     {
         var dialog = new OpenFileDialog
         {
             Title = "Import Videos or Pictures to the Media Library",
-            Filter = "Videos & Pictures|*.mp4;*.webm;*.mov;*.m4v;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp|Video Files (*.mp4;*.webm;*.mov;*.m4v)|*.mp4;*.webm;*.mov;*.m4v|Pictures (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp)|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp|All Files (*.*)|*.*",
+            Filter = $"{AllMediaFilterLabel}|{MediaConverter.DialogPattern(video: true, stills: true)}"
+                   + $"|Videos|{MediaConverter.DialogPattern(video: true, stills: false)}"
+                   + $"|Pictures|{MediaConverter.DialogPattern(video: false, stills: true)}"
+                   + "|All Files (*.*)|*.*",
             Multiselect = true
         };
+        if (dialog.ShowDialog() != true) return;
 
-        if (dialog.ShowDialog() == true)
+        int imported = 0;
+        var failures = new List<string>();
+        var files = dialog.FileNames;
+        for (int i = 0; i < files.Length; i++)
         {
-            foreach (var file in dialog.FileNames)
-            {
-                var title = Path.GetFileNameWithoutExtension(file);
-                var item = new MediaItem
-                {
-                    Title = title,
-                    FilePath = file,
-                    DurationSeconds = 0,
-                    Category = StandardCategories.NationalNews,
-                    AssignedTransition = TransitionType.Fade,
-                    IsAvailable = true,
-                    CreatedAt = DateTime.UtcNow
-                };
+            var file = files[i];
+            var label = files.Length > 1 ? $" ({i + 1}/{files.Length})" : string.Empty;
 
-                int newId = _db.AddMedia(item);
-                item.Id = newId;
-                _server.RegisterApprovedMedia(newId, file);
-                MediaLibrary.Insert(0, item);
+            var playable = await ConvertForBroadcastAsync(file, label);
+            if (playable == null)
+            {
+                failures.Add(Path.GetFileName(file));
+                continue;
             }
+
+            var item = new MediaItem
+            {
+                Title = Path.GetFileNameWithoutExtension(file),
+                FilePath = playable,
+                OriginalPath = playable == file ? string.Empty : file,
+                DurationSeconds = 0,
+                Category = StandardCategories.NationalNews,
+                AssignedTransition = TransitionType.Fade,
+                IsAvailable = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            item.Id = _db.AddMedia(item);
+            _server.RegisterApprovedMedia(item.Id, playable);
+            MediaLibrary.Insert(0, item);
             ApplyMediaFilter();
-            StatusNotification = $"Imported {dialog.FileNames.Length} item(s) into the library. Pictures of people: add a caption name and designation below the list.";
+            imported++;
+        }
+
+        StatusNotification = failures.Count == 0
+            ? $"Imported {imported} item(s) into the library. Pictures of people: add a caption name and designation below the list."
+            : $"Imported {imported} item(s); could not import {string.Join(", ", failures)}. {StatusNotification}";
+    }
+
+    /// <summary>
+    /// Returns a canvas-playable path for the file, converting camera formats first
+    /// (status bar shows progress). Null when conversion failed; the reason is shown.
+    /// </summary>
+    private async Task<string?> ConvertForBroadcastAsync(string file, string label = "")
+    {
+        if (!MediaConverter.NeedsConversion(file)) return file;
+
+        var name = Path.GetFileName(file);
+        var kind = MediaConverter.IsCameraVideo(file) ? "camera video" : "camera picture";
+        StatusNotification = $"Converting {kind} '{name}'{label} for broadcast…";
+        var progress = new Progress<string>(pct => StatusNotification = $"Converting {kind} '{name}'{label} for broadcast… {pct}");
+
+        try
+        {
+            var playable = await _converter.EnsurePlayableAsync(file, progress);
+            StatusNotification = $"Converted '{name}' — ready to use (original file untouched).";
+            return playable;
+        }
+        catch (Exception ex)
+        {
+            StatusNotification = $"Could not convert '{name}': {ex.Message}";
+            return null;
         }
     }
 
@@ -1886,14 +1936,16 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void SelectIntroVideo()
+    private async void SelectIntroVideo()
     {
         var dialog = new OpenFileDialog
         {
             Title = "Choose Intro / Theme Video",
-            Filter = "Video Files (*.mp4;*.webm;*.mov;*.m4v)|*.mp4;*.webm;*.mov;*.m4v|All Files (*.*)|*.*"
+            Filter = $"Videos (incl. camera .mts)|{MediaConverter.DialogPattern(video: true, stills: false)}|All Files (*.*)|*.*"
         };
-        if (dialog.ShowDialog() == true) SetIntroMedia(video: true, path: dialog.FileName);
+        if (dialog.ShowDialog() != true) return;
+        var playable = await ConvertForBroadcastAsync(dialog.FileName);
+        if (playable != null) SetIntroMedia(video: true, path: playable);
     }
 
     private void SelectIntroAudio()
@@ -1973,6 +2025,36 @@ public class MainViewModel : ViewModelBase
             : $"LIVE NARRATOR VOICE-OVER: program audio ducked to {_voConfig.DuckLevel:P0}. Press STOP when the narration ends.";
     }
 
+    /// <summary>
+    /// Keeps the on-air video's own sound running as the voice-over, so pictures or
+    /// other clips can be taken live over it (news "sound bite with cover shots").
+    /// The program goes silent; the held sound ends with the clip or on STOP.
+    /// </summary>
+    private void HoldProgramSound()
+    {
+        if (_broadcastWindow == null)
+        {
+            StatusNotification = "Open the broadcast output (projector) before holding the program sound.";
+            return;
+        }
+        if (_stateManager.State.IsStandbyActive || _stateManager.State.OnAirMedia is not { } onAir || onAir.IsImage)
+        {
+            StatusNotification = "Take a video live first — its sound is what gets held as the voice-over.";
+            return;
+        }
+
+        SendCanvasCommand("set_volume", ProgramVolume);
+        SendCanvasCommand("start_voice_over_from_program", new VoiceOverCommandData
+        {
+            Name = _voConfig.Name,
+            Designation = _voConfig.Designation,
+            Volume = _voConfig.Volume,
+            ShowTag = _voConfig.ShowTag && !string.IsNullOrWhiteSpace(_voConfig.Name)
+        });
+        _stateManager.SetVoiceOverActive(true);
+        StatusNotification = $"HOLDING SOUND of '{onAir.Title}' as voice-over — cue pictures or video and TAKE them over it. STOP VO ends it.";
+    }
+
     private void StopVoiceOver()
     {
         SendCanvasCommand("stop_voice_over");
@@ -1980,14 +2062,23 @@ public class MainViewModel : ViewModelBase
         StatusNotification = "Voice-over stopped — program audio restored.";
     }
 
-    private void SelectVoiceOverAudio()
+    /// <summary>
+    /// The voice-over track can be plain audio or any video: a video plays its
+    /// soundtrack only, so the interview audio runs under whatever is on air.
+    /// </summary>
+    private async void SelectVoiceOverAudio()
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Choose Voice-over Track",
-            Filter = "Audio Files (*.mp3;*.wav;*.m4a;*.aac;*.ogg)|*.mp3;*.wav;*.m4a;*.aac;*.ogg|All Files (*.*)|*.*"
+            Title = "Choose Voice-over Track (audio, or a video whose sound you want)",
+            Filter = $"Audio or Video|{MediaConverter.DialogPattern(video: true, stills: false, audio: true)}"
+                   + $"|Audio Files|{MediaConverter.DialogPattern(video: false, stills: false, audio: true)}"
+                   + $"|Video Files (sound only)|{MediaConverter.DialogPattern(video: true, stills: false)}"
+                   + "|All Files (*.*)|*.*"
         };
-        if (dialog.ShowDialog() == true) SetVoiceOverAudio(dialog.FileName);
+        if (dialog.ShowDialog() != true) return;
+        var playable = await ConvertForBroadcastAsync(dialog.FileName);
+        if (playable != null) SetVoiceOverAudio(playable);
     }
 
     private void SetVoiceOverAudio(string path)
@@ -2003,20 +2094,23 @@ public class MainViewModel : ViewModelBase
 
     private static int ParseBox(object? param) => param?.ToString() == "2" ? 2 : 1;
 
-    private void SelectSpeakerFile(int box)
+    private async void SelectSpeakerFile(int box)
     {
         var dialog = new OpenFileDialog
         {
             Title = $"Choose a clip or picture for speaker window {box}",
-            Filter = "Videos & Pictures|*.mp4;*.webm;*.mov;*.m4v;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp|All Files (*.*)|*.*"
+            Filter = $"{AllMediaFilterLabel}|{MediaConverter.DialogPattern(video: true, stills: true)}|All Files (*.*)|*.*"
         };
         if (dialog.ShowDialog() != true) return;
+        var playable = await ConvertForBroadcastAsync(dialog.FileName);
+        if (playable == null) return;
 
         var config = _speakers[box - 1];
         config.SourceKind = "file";
-        config.SourcePath = dialog.FileName;
+        config.SourcePath = playable;
         SpeakerSourceChanged(box);
     }
+
 
     private void UseSpeakerCamera(int box)
     {

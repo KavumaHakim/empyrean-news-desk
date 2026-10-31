@@ -809,7 +809,9 @@
                             <Button Content="▶" Command="{Binding PlayCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Play (Space)"/>
                             <Button Content="❚❚" Command="{Binding PauseCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Pause (Space)"/>
                             <Button Content="■" Command="{Binding StopCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Stop"/>
-                            <Button Content="↺" Command="{Binding ReplayCommand}" Style="{StaticResource SmallButton}" ToolTip="Replay from start"/>
+                            <Button Content="↺" Command="{Binding ReplayCommand}" Style="{StaticResource SmallButton}" ToolTip="Replay from start" Margin="0,0,6,0"/>
+                            <Button Content="🎙 HOLD SOUND" Command="{Binding HoldProgramSoundCommand}" Style="{StaticResource SmallButton}"
+                                    ToolTip="Keep this video's sound running as a voice-over, then take pictures or other video live over it"/>
                         </StackPanel>
                         <Slider x:Name="TimelineSlider" Grid.Column="1" Minimum="0"
                                 Maximum="{Binding PlaybackDuration}"
@@ -1409,17 +1411,17 @@
                                         </Style>
                                     </Button.Style>
                                 </Button>
-                                <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextMuted}"
-                                           Text="Plays over whatever is on air; program audio dips to the 'Duck to' level and comes back when it ends."/>
+                                <Button Grid.Column="1" Content="🎙  HOLD PROGRAM SOUND" Command="{Binding HoldProgramSoundCommand}" Style="{StaticResource SecondaryButton}" Padding="14,8" HorizontalAlignment="Left"
+                                        ToolTip="The video on air keeps talking as a voice-over while you TAKE pictures or other clips over it"/>
                             </Grid>
 
-                            <TextBlock Grid.Row="1" Text="Voice-over track (optional)" Style="{StaticResource FieldLabel}"/>
+                            <TextBlock Grid.Row="1" Text="Voice-over track (optional) — audio, or a video whose sound you want" Style="{StaticResource FieldLabel}"/>
                             <Grid Grid.Row="2" Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <Border Background="{StaticResource InkBase}" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" Padding="8,4" Margin="0,0,6,0">
                                     <TextBlock Text="{Binding VoiceOverAudioDisplay}" Foreground="{StaticResource TextHi}" TextTrimming="CharacterEllipsis"/>
                                 </Border>
-                                <Button Grid.Column="1" Content="CHOOSE AUDIO…" Command="{Binding SelectVoiceOverAudioCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,0"/>
+                                <Button Grid.Column="1" Content="CHOOSE AUDIO / VIDEO…" Command="{Binding SelectVoiceOverAudioCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,0"/>
                                 <Button Grid.Column="2" Content="CLEAR" Command="{Binding ClearVoiceOverAudioCommand}" Style="{StaticResource SmallButton}"/>
                             </Grid>
 
@@ -1441,7 +1443,7 @@
                             </WrapPanel>
 
                             <TextBlock Grid.Row="5" TextWrapping="Wrap" Style="{StaticResource MicroLabel}" FontSize="10" Margin="0,6,0,0"
-                                       Text="No track chosen = live narrator mode: someone speaks in the room while the video plays; the app only dips the video sound and shows the tag until you press STOP. Volume and duck level are in the Audio Mixer. Standby (F6 / Esc) always stops the voice-over."/>
+                                       Text="HOLD PROGRAM SOUND: the video on air keeps talking while you TAKE pictures or other clips over it (their own sound stays off). A video chosen as the track plays its sound only. No track = live narrator: the video sound dips and the tag shows until STOP. Standby (F6 / Esc) always stops the voice-over."/>
                         </Grid>
                     </TabItem>
 

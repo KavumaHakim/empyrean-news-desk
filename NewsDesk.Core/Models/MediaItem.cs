@@ -45,6 +45,12 @@ public class MediaItem
     public string CaptionName { get; set; } = string.Empty;
     public string CaptionTitle { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The camera file this item was converted from (e.g. an .mts or .cr3);
+    /// empty when FilePath is the original. FilePath is always the playable copy.
+    /// </summary>
+    public string OriginalPath { get; set; } = string.Empty;
+
     public static readonly string[] ImageExtensions = [".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp"];
 
     /// <summary>Still pictures are shown as full-frame image scenes instead of video.</summary>

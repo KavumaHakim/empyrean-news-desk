@@ -541,14 +541,21 @@
         if (!vid) return;
         const from = vid.volume;
         const to = programTargetVolume();
-        if (duckRampFrame !== null) cancelAnimationFrame(duckRampFrame);
+        // A timer, not requestAnimationFrame: rAF stops while the window is hidden or
+        // covered, which would leave the program un-ducked under a voice-over.
+        if (duckRampFrame !== null) clearInterval(duckRampFrame);
+        duckRampFrame = null;
         const startedAt = performance.now();
         const step = () => {
             const progress = rampMs > 0 ? Math.min(1, (performance.now() - startedAt) / rampMs) : 1;
             vid.volume = clamp01(from + (to - from) * progress);
-            duckRampFrame = progress < 1 ? requestAnimationFrame(step) : null;
+            if (progress >= 1 && duckRampFrame !== null) {
+                clearInterval(duckRampFrame);
+                duckRampFrame = null;
+            }
+            return progress;
         };
-        step();
+        if (step() < 1) duckRampFrame = setInterval(step, 20);
     }
 
     function setVolume(val) {
@@ -585,13 +592,53 @@
             voAudio.loop = Boolean(data.loop);
             voAudio.volume = clamp01(data.volume ?? 1);
             voAudio.load();
+            if (data.startAt > 0) voAudio.currentTime = data.startAt;
             voAudio.play().catch(() => {
                 sendHostMessage('overlay_error', { message: 'Voice-over audio could not start.' });
                 stopVoiceOver(true);
             });
         }
-        applyProgramVolume(400);
+        applyProgramVolume(data.rampMs ?? 400);
         sendHostMessage('vo_started', { hasAudio: Boolean(data.audioUrl) });
+    }
+
+    // The clip on air keeps talking as a voice-over: its soundtrack moves to the
+    // VO player (picking up where it is) and the program goes silent, so the
+    // operator can take pictures or other video live over the interview audio.
+    function startVoiceOverFromProgram(data) {
+        const vid = getActiveVideo();
+        if (!vid || !vid.currentSrc || vid.style.display === 'none' || vid.ended) {
+            sendHostMessage('overlay_error', { message: 'No video is on air to take the voice-over sound from.' });
+            sendHostMessage('vo_ended', {});
+            return;
+        }
+
+        startVoiceOver(Object.assign({}, data, {
+            audioUrl: vid.currentSrc,
+            startAt: vid.currentTime,
+            duckLevel: 0,      // program fully silent: only the held soundtrack is heard
+            loop: false,
+            rampMs: 120        // near-instant swap, so the two copies never echo
+        }));
+
+        // Lip sync while the same clip is still on screen: one hard re-align once the VO
+        // player runs, then small speed nudges until the operator cuts away.
+        const src = voAudio.src;
+        voAudio.addEventListener('playing', () => {
+            if (voActive && getActiveVideo() === vid && !vid.paused) voAudio.currentTime = vid.currentTime;
+        }, { once: true });
+
+        const sync = setInterval(() => {
+            const sameClipOnAir = voActive && voAudio.src === src && getActiveVideo() === vid && !vid.paused && !isTransitioning;
+            if (!sameClipOnAir) {
+                voAudio.playbackRate = 1;
+                if (!voActive || voAudio.src !== src || getActiveVideo() !== vid) clearInterval(sync);
+                return;
+            }
+            const drift = voAudio.currentTime - vid.currentTime; // + = sound ahead of picture
+            if (Math.abs(drift) > 0.5) voAudio.currentTime = vid.currentTime;
+            else voAudio.playbackRate = Math.abs(drift) < 0.03 ? 1 : (drift > 0 ? 0.96 : 1.04);
+        }, 250);
     }
 
     function stopVoiceOver(notify) {
@@ -1296,6 +1343,9 @@
             case 'start_voice_over':
                 startVoiceOver(msg.data);
                 break;
+            case 'start_voice_over_from_program':
+                startVoiceOverFromProgram(msg.data);
+                break;
             case 'stop_voice_over':
                 stopVoiceOver(true);
                 break;
@@ -1347,6 +1397,7 @@
         playIntro,
         skipIntro,
         startVoiceOver,
+        startVoiceOverFromProgram,
         stopVoiceOver,
         showSpeakers,
         hideSpeakers

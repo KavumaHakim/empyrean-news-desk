@@ -142,7 +142,7 @@ public class DatabaseService : IDisposable
             while (reader.Read()) existing.Add(reader.GetString(1));
         }
 
-        foreach (var column in new[] { "CaptionName", "CaptionTitle" })
+        foreach (var column in new[] { "CaptionName", "CaptionTitle", "OriginalPath" })
         {
             if (existing.Contains(column)) continue;
             using var alter = conn.CreateCommand();
@@ -267,7 +267,7 @@ public class DatabaseService : IDisposable
         var list = new List<MediaItem>();
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT Id, Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt, CaptionName, CaptionTitle FROM MediaItems ORDER BY Id DESC;";
+        cmd.CommandText = "SELECT Id, Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt, CaptionName, CaptionTitle, OriginalPath FROM MediaItems ORDER BY Id DESC;";
 
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
@@ -287,7 +287,8 @@ public class DatabaseService : IDisposable
                 IsAvailable = isAvailable,
                 CreatedAt = DateTime.Parse(reader.GetString(8)),
                 CaptionName = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                CaptionTitle = reader.IsDBNull(10) ? "" : reader.GetString(10)
+                CaptionTitle = reader.IsDBNull(10) ? "" : reader.GetString(10),
+                OriginalPath = reader.IsDBNull(11) ? "" : reader.GetString(11)
             });
         }
         return list;
@@ -297,7 +298,7 @@ public class DatabaseService : IDisposable
     {
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT Id, Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt, CaptionName, CaptionTitle FROM MediaItems WHERE Id = $id;";
+        cmd.CommandText = "SELECT Id, Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt, CaptionName, CaptionTitle, OriginalPath FROM MediaItems WHERE Id = $id;";
         cmd.Parameters.AddWithValue("$id", id);
 
         using var reader = cmd.ExecuteReader();
@@ -316,7 +317,8 @@ public class DatabaseService : IDisposable
                 IsAvailable = File.Exists(filePath),
                 CreatedAt = DateTime.Parse(reader.GetString(8)),
                 CaptionName = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                CaptionTitle = reader.IsDBNull(10) ? "" : reader.GetString(10)
+                CaptionTitle = reader.IsDBNull(10) ? "" : reader.GetString(10),
+                OriginalPath = reader.IsDBNull(11) ? "" : reader.GetString(11)
             };
         }
         return null;
@@ -327,8 +329,8 @@ public class DatabaseService : IDisposable
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
-            INSERT INTO MediaItems (Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt, CaptionName, CaptionTitle)
-            VALUES ($title, $filePath, $duration, $category, $transition, $description, $isAvailable, $createdAt, $captionName, $captionTitle);
+            INSERT INTO MediaItems (Title, FilePath, DurationSeconds, Category, AssignedTransition, Description, IsAvailable, CreatedAt, CaptionName, CaptionTitle, OriginalPath)
+            VALUES ($title, $filePath, $duration, $category, $transition, $description, $isAvailable, $createdAt, $captionName, $captionTitle, $originalPath);
             SELECT last_insert_rowid();
         ";
         cmd.Parameters.AddWithValue("$title", item.Title);
@@ -341,8 +343,10 @@ public class DatabaseService : IDisposable
         cmd.Parameters.AddWithValue("$createdAt", item.CreatedAt.ToString("o"));
         cmd.Parameters.AddWithValue("$captionName", item.CaptionName ?? string.Empty);
         cmd.Parameters.AddWithValue("$captionTitle", item.CaptionTitle ?? string.Empty);
+        cmd.Parameters.AddWithValue("$originalPath", item.OriginalPath ?? string.Empty);
 
-        var newId = Convert.ToInt32(cmd.ExecuteScalar());
+        var newId
+ = Convert.ToInt32(cmd.ExecuteScalar());
         item.Id = newId;
         return newId;
     }
