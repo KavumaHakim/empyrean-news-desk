@@ -856,12 +856,13 @@ body.on-graphic .station-chip { opacity: 0; }
 }
 
 /* ==========================================================================
-   INTRO TITLE SEQUENCE (≈12s; timings are driven by animation delays)
-     0.0  dark stage, red light streaks, countdown pips
-     0.8  globe flies in out of the dark, orbit rings spin up
-     6.3  white flash → light studio
-     7.0  brand blocks build, edition line resolves
-     8.4  "SPECIAL BROADCAST" + tagline
+   INTRO TITLE SEQUENCE (≈12s; timings are driven by animation delays and
+   scored to the built-in theme in broadcast.js)
+     0.0  white map, extreme close-up of the red globe, ribbons sweep past
+     3.0  concentric red rings spin through depth
+     4.8  dark red pass: globe silhouette, light bands, flare
+     6.3  white flash (theme impact) → red ribbon spiral
+     8.4  end frame: striped globe on the right, station box bottom-left
     11.3  fade out (broadcast.js) into the opening scene
    ========================================================================== */
 
@@ -888,166 +889,438 @@ body.on-graphic .station-chip { opacity: 0; }
     position: absolute;
     inset: 0;
     overflow: hidden;
-    perspective: 1600px;
+    perspective: 1800px;
+    background: radial-gradient(70% 70% at 40% 40%, #FFFFFF 0%, #F1F2F5 60%, #E3E5EA 100%);
 }
 
 .intro-motion.hidden { display: none; }
 
-.intro-motion > * { animation-fill-mode: both; animation-play-state: paused; }
-.intro-layer.intro-run .intro-motion > *,
-.intro-layer.intro-run .intro-motion .brand-row > *,
-.intro-layer.intro-run .intro-motion .brand-edition,
-.intro-layer.intro-run .intro-motion .intro-copy > * { animation-play-state: running; }
+/* Nothing moves until the layer starts running, so every replay starts at 0s */
+.intro-layer .intro-motion,
+.intro-layer .intro-motion * { animation-play-state: paused; }
+.intro-layer.intro-run .intro-motion,
+.intro-layer.intro-run .intro-motion * { animation-play-state: running; }
 
-.intro-dark {
+/* A scene is visible only inside its own time window */
+.ix-scene {
     position: absolute;
     inset: 0;
-    background: radial-gradient(70% 80% at 70% 40%, #3A060C 0%, #16030A 45%, #050106 100%);
-    animation: intro-dark-out 600ms 6.3s ease forwards;
-}
-
-@keyframes intro-dark-out { to { opacity: 0; } }
-
-.intro-streak {
-    position: absolute;
-    left: -400px;
-    width: 2700px;
-    height: 6px;
-    border-radius: 6px;
-    background: linear-gradient(90deg, rgba(255, 40, 60, 0) 0%, rgba(255, 60, 70, 0.95) 45%, #FFFFFF 50%, rgba(255, 60, 70, 0.95) 55%, rgba(255, 40, 60, 0) 100%);
-    box-shadow: 0 0 24px rgba(255, 40, 60, 0.9);
     opacity: 0;
+    transform-style: preserve-3d;
 }
 
-.intro-streak-1 { top: 300px; animation: intro-streak 1.6s 0.2s cubic-bezier(0.5, 0, 0.3, 1) both; }
-.intro-streak-2 { top: 620px; height: 3px; animation: intro-streak 1.4s 1.3s cubic-bezier(0.5, 0, 0.3, 1) both; }
-.intro-streak-3 { top: 460px; height: 10px; animation: intro-streak 1.8s 3.6s cubic-bezier(0.5, 0, 0.3, 1) both; }
-
-@keyframes intro-streak {
-    0%   { opacity: 0; transform: rotate(-16deg) translateX(-2600px); }
-    20%  { opacity: 1; }
-    80%  { opacity: 1; }
-    100% { opacity: 0; transform: rotate(-16deg) translateX(2600px); }
+@keyframes ix-window {
+    0%   { opacity: 0; }
+    8%   { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { opacity: 0; }
 }
 
-/* Countdown pips light one by one on the beat */
-.intro-pips {
-    position: absolute;
-    left: 50%;
-    top: 860px;
-    display: flex;
-    gap: 34px;
-    transform: translateX(-50%);
-    animation: intro-fade-out 400ms 5.6s ease forwards;
-}
-
-.intro-pips span {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
-    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25);
-    animation: intro-pip 300ms ease-out both;
-    animation-play-state: inherit;
-}
-
-.intro-layer.intro-run .intro-pips span { animation-play-state: running; }
-.intro-pips span:nth-child(1) { animation-delay: 0.5s; }
-.intro-pips span:nth-child(2) { animation-delay: 1.0s; }
-.intro-pips span:nth-child(3) { animation-delay: 1.5s; }
-.intro-pips span:nth-child(4) { animation-delay: 2.0s; }
-.intro-pips span:nth-child(5) { animation-delay: 2.5s; }
-.intro-pips span:nth-child(6) { animation-delay: 3.0s; }
-
-@keyframes intro-pip {
-    from { background: rgba(255, 255, 255, 0.12); transform: scale(0.8); }
-    to   { background: var(--red-hi); transform: scale(1); box-shadow: 0 0 22px rgba(255, 40, 60, 0.95); }
-}
-
-@keyframes intro-fade-out { to { opacity: 0; } }
-
-.intro-light {
-    opacity: 0;
-    animation: intro-fade-in 500ms 6.4s ease both;
-}
-
-@keyframes intro-fade-in {
+@keyframes ix-appear {
     from { opacity: 0; }
     to   { opacity: 1; }
 }
 
-/* Fly-in copy is masked to the sphere so the plate's edges never show on the dark stage */
-.intro-globe {
-    opacity: 0;
-    transform-origin: 590px 420px;
-    -webkit-mask-image: radial-gradient(closest-side at 590px 420px, #000 78%, transparent 100%);
-    mask-image: radial-gradient(closest-side at 590px 420px, #000 78%, transparent 100%);
-    -webkit-mask-size: 1180px 840px;
-    mask-size: 1180px 840px;
+/* ---------- World map ---------- */
+.ix-map {
+    position: absolute;
+    inset: 0;
+    animation: ix-map-drift 12s linear both;
+}
+
+.ix-map svg { width: 100%; height: 100%; }
+.ix-map-lines path { fill: none; stroke: #B9BDC6; stroke-width: 1.5; }
+.ix-map-dots circle { fill: #9EA3AD; }
+.ix-map-labels text {
+    fill: #8E939D;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: 5px;
+}
+
+@keyframes ix-map-drift {
+    from { transform: scale(1.12) translate(40px, 20px); }
+    to   { transform: scale(1) translate(0, 0); }
+}
+
+/* ---------- Globe (the station plate, masked to its sphere) ----------
+   Plate: 1047x749, sphere centre ≈ (590,420), radius ≈ 400. */
+.ix-globe {
+    position: absolute;
+    background: url("assets/globe-plate.png") no-repeat 0 0 / 100% 100%;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
-    animation: intro-globe-in 5.5s 0.8s cubic-bezier(0.16, 0.7, 0.2, 1) both;
 }
 
-/* Full artwork (rings and all) takes over under the white flash */
-.intro-globe-final {
-    opacity: 0;
-    animation: intro-fade-in 300ms 6.3s ease both;
+/* 3x close-up: sphere centre (1770,1260) in the element, (520,1650) on stage */
+.ix-globe-close {
+    left: -1250px;
+    top: 390px;
+    width: 3141px;
+    height: 2247px;
+    transform-origin: 1770px 1260px;
+    -webkit-mask-image: radial-gradient(circle 1200px at 1770px 1260px, #000 98%, transparent 100%);
+    mask-image: radial-gradient(circle 1200px at 1770px 1260px, #000 98%, transparent 100%);
+    animation: ix-close-cam 3.1s 0s cubic-bezier(0.3, 0, 0.5, 1) both;
 }
 
-@keyframes intro-globe-in {
-    0%   { opacity: 0; transform: translate(-520px, 160px) scale(2.6) rotate(-14deg); filter: blur(18px) brightness(0.5); }
-    25%  { opacity: 1; }
-    80%  { filter: blur(0) brightness(0.85); }
-    100% { opacity: 1; transform: translate(0, 0) scale(1) rotate(0); filter: blur(0) brightness(1); }
+@keyframes ix-close-cam {
+    from { transform: translate(260px, 240px) rotate(-14deg) scale(1.15); }
+    to   { transform: translate(-120px, -40px) rotate(8deg) scale(1); }
 }
 
-/* Orbit rings spinning around the globe centre (stage ≈ 1463,420) */
-.intro-orbit {
+/* Silhouette crossing the dark pass */
+.ix-globe-dark {
+    left: 760px;
+    top: -60px;
+    width: 1570px;
+    height: 1124px;
+    transform-origin: 885px 630px;
+    -webkit-mask-image: radial-gradient(circle 600px at 885px 630px, #000 97%, transparent 100%);
+    mask-image: radial-gradient(circle 600px at 885px 630px, #000 97%, transparent 100%);
+    filter: brightness(0.45) saturate(1.5) contrast(1.2);
+    animation: ix-dark-cross 1.6s 4.8s cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+
+@keyframes ix-dark-cross {
+    from { transform: translateX(520px) rotate(10deg); }
+    to   { transform: translateX(-640px) rotate(-6deg); }
+}
+
+/* End frame: 1.3x, sphere centre (767,546) in element, (1560,560) on stage */
+.ix-globe-end {
+    left: 793px;
+    top: 14px;
+    width: 1361px;
+    height: 974px;
+    transform-origin: 767px 546px;
+    -webkit-mask-image: radial-gradient(circle 525px at 767px 546px, #000 97%, transparent 100%);
+    mask-image: radial-gradient(circle 525px at 767px 546px, #000 97%, transparent 100%);
+    animation: ix-end-globe 3.6s 8.4s cubic-bezier(0.16, 0.7, 0.3, 1) both;
+}
+
+@keyframes ix-end-globe {
+    from { transform: rotate(-12deg) scale(1.25); }
+    to   { transform: rotate(0deg) scale(1); }
+}
+
+/* ---------- 1. Close-up ribbons ---------- */
+.ix-s1 { animation: ix-window 3.2s 0s linear both; }
+
+.ix-ribbon {
     position: absolute;
-    left: 1463px;
-    top: 420px;
-    width: 1300px;
-    height: 1300px;
-    margin: -650px 0 0 -650px;
     border-radius: 50%;
+    border-style: solid;
+    border-color: transparent;
+    transform-style: preserve-3d;
+}
+
+.ix-r1 {
+    left: 900px; top: 760px;
+    width: 2700px; height: 2700px;
+    margin: -1350px 0 0 -1350px;
+    border-width: 110px;
+    border-top-color: #FFFFFF;
+    border-right-color: #FFFFFF;
+    filter: drop-shadow(0 26px 30px rgba(60, 0, 10, 0.35));
+    animation: ix-r1 3.1s 0s cubic-bezier(0.4, 0, 0.4, 1) both;
+}
+
+.ix-r2 {
+    left: 1180px; top: 560px;
+    width: 2000px; height: 2000px;
+    margin: -1000px 0 0 -1000px;
+    border-width: 54px;
+    border-top-color: var(--red);
+    border-left-color: var(--red);
+    filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.25));
+    animation: ix-r2 3.1s 0s cubic-bezier(0.4, 0, 0.4, 1) both;
+}
+
+.ix-r3 {
+    left: 1000px; top: 700px;
+    width: 2360px; height: 2360px;
+    margin: -1180px 0 0 -1180px;
+    border-width: 8px;
+    border-top-color: #2A0A0E;
+    border-right-color: #2A0A0E;
+    animation: ix-r3 3.1s 0s cubic-bezier(0.4, 0, 0.4, 1) both;
+}
+
+@keyframes ix-r1 {
+    from { transform: rotateX(64deg) rotateZ(-70deg); }
+    to   { transform: rotateX(58deg) rotateZ(60deg); }
+}
+
+@keyframes ix-r2 {
+    from { transform: rotateX(70deg) rotateY(-12deg) rotateZ(200deg); }
+    to   { transform: rotateX(66deg) rotateY(-12deg) rotateZ(40deg); }
+}
+
+@keyframes ix-r3 {
+    from { transform: rotateX(62deg) rotateZ(-20deg); }
+    to   { transform: rotateX(62deg) rotateZ(110deg); }
+}
+
+/* ---------- 2. Target rings ---------- */
+.ix-s2 { animation: ix-window 2.0s 3.0s linear both; }
+
+.ix-glow {
+    position: absolute;
+    left: 960px; top: 560px;
+    width: 900px; height: 900px;
+    margin: -450px 0 0 -450px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 170, 60, 0.85) 0%, rgba(255, 90, 40, 0.35) 30%, rgba(255, 255, 255, 0) 65%);
+}
+
+.ix-target {
+    position: absolute;
+    left: 960px; top: 560px;
+    width: 0; height: 0;
+    transform-style: preserve-3d;
+    animation: ix-target-cam 2.0s 3.0s cubic-bezier(0.2, 0.6, 0.3, 1) both;
+}
+
+.ix-target span {
+    position: absolute;
+    border-radius: 50%;
+    border: solid var(--red);
+    border-left-color: transparent;
+    animation: ix-spin 2s linear infinite;
+}
+
+.ix-target span:nth-child(1) { width: 1100px; height: 1100px; margin: -550px; border-width: 46px; filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.25)); }
+.ix-target span:nth-child(2) { width: 880px;  height: 880px;  margin: -440px; border-width: 10px; border-color: #2A0A0E; border-left-color: transparent; animation-direction: reverse; }
+.ix-target span:nth-child(3) { width: 700px;  height: 700px;  margin: -350px; border-width: 60px; animation-duration: 1.6s; }
+.ix-target span:nth-child(4) { width: 470px;  height: 470px;  margin: -235px; border-width: 26px; border-bottom-color: transparent; animation-direction: reverse; }
+.ix-target span:nth-child(5) { width: 280px;  height: 280px;  margin: -140px; border-width: 34px; border-color: #FFFFFF; border-left-color: transparent; filter: drop-shadow(0 6px 10px rgba(80, 0, 10, 0.4)); }
+.ix-target span:nth-child(6) { width: 120px;  height: 120px;  margin: -60px;  border-width: 4px;  border-color: #2A0A0E; animation: none; }
+
+@keyframes ix-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes ix-target-cam {
+    from { transform: rotateX(58deg) rotateY(-24deg) scale(2.8); }
+    to   { transform: rotateX(18deg) rotateY(8deg) scale(0.9); }
+}
+
+/* ---------- 3. Dark red pass ---------- */
+.ix-s3 {
+    background: radial-gradient(60% 75% at 52% 58%, #FF9A3C 0%, #E8411F 16%, #AE0F1D 36%, #4A050C 66%, #0E0104 100%);
+    animation: ix-window 1.6s 4.8s linear both;
+}
+
+.ix-band {
+    position: absolute;
+    left: -600px;
+    width: 3200px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #FFFFFF 22%, #FFFFFF 78%, rgba(255, 255, 255, 0) 100%);
+    box-shadow: 0 0 40px rgba(255, 220, 200, 0.6);
+    transform-origin: 50% 50%;
+}
+
+.ix-b1 { top: 360px; height: 120px; animation: ix-band 1.6s 4.8s cubic-bezier(0.4, 0, 0.6, 1) both; }
+.ix-b2 { top: 560px; height: 54px;  animation: ix-band 1.4s 4.95s cubic-bezier(0.4, 0, 0.6, 1) both; }
+.ix-b3 { top: 700px; height: 18px;  opacity: 0.8; animation: ix-band 1.3s 5.1s cubic-bezier(0.4, 0, 0.6, 1) both; }
+
+@keyframes ix-band {
+    from { transform: rotate(-17deg) translateX(-900px) scaleY(0.6); }
+    to   { transform: rotate(-11deg) translateX(700px) scaleY(1); }
+}
+
+.ix-flare {
+    position: absolute;
+    left: 1010px; top: 660px;
+    width: 700px; height: 700px;
+    margin: -350px 0 0 -350px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #FFFFFF 0%, rgba(255, 230, 160, 0.95) 6%, rgba(255, 150, 50, 0.55) 20%, rgba(255, 80, 30, 0) 55%);
+    mix-blend-mode: screen;
+    animation: ix-flare 1.6s 4.8s ease-in-out both;
+}
+
+@keyframes ix-flare {
+    0%   { transform: translateX(-300px) scale(0.4); opacity: 0.4; }
+    60%  { transform: translateX(80px) scale(1.15); opacity: 1; }
+    100% { transform: translateX(240px) scale(0.8); opacity: 0.7; }
+}
+
+/* ---------- 4. Ribbon spiral ---------- */
+.ix-s4 { animation: ix-window 2.4s 6.25s linear both; }
+
+.ix-spiral {
+    position: absolute;
+    left: 820px; top: 520px;
+    width: 0; height: 0;
+    transform-style: preserve-3d;
+    animation: ix-spiral-cam 2.4s 6.25s cubic-bezier(0.2, 0.6, 0.3, 1) both;
+}
+
+.ix-spiral span {
+    position: absolute;
+    width: 820px; height: 820px;
+    margin: -410px;
+    border-radius: 50%;
+    border: 46px solid var(--red);
+    border-right-color: transparent;
+    filter: drop-shadow(0 10px 12px rgba(60, 0, 10, 0.3));
+    animation: ix-ring-turn 2.4s linear infinite;
+}
+
+.ix-spiral span:nth-child(1) { --tilt: 0deg; }
+.ix-spiral span:nth-child(2) { --tilt: 30deg;  width: 700px; height: 700px; margin: -350px; border-width: 8px; border-color: #2A0A0E; border-right-color: transparent; }
+.ix-spiral span:nth-child(3) { --tilt: 60deg;  animation-direction: reverse; }
+.ix-spiral span:nth-child(4) { --tilt: 90deg;  width: 960px; height: 960px; margin: -480px; border-width: 18px; }
+.ix-spiral span:nth-child(5) { --tilt: 120deg; width: 560px; height: 560px; margin: -280px; animation-direction: reverse; }
+.ix-spiral span:nth-child(6) { --tilt: 150deg; width: 1080px; height: 1080px; margin: -540px; border-width: 5px; border-color: #B5B9C2; border-right-color: transparent; }
+
+@keyframes ix-ring-turn {
+    from { transform: rotateY(var(--tilt)) rotateX(12deg) rotateZ(0deg); }
+    to   { transform: rotateY(var(--tilt)) rotateX(12deg) rotateZ(360deg); }
+}
+
+@keyframes ix-spiral-cam {
+    from { transform: rotateX(-14deg) rotateY(40deg) scale(1.7); }
+    to   { transform: rotateX(-6deg) rotateY(-20deg) translateX(-120px) scale(0.85); }
+}
+
+/* ---------- End frame ---------- */
+.ix-end {
+    position: absolute;
+    inset: 0;
     opacity: 0;
+    animation: ix-appear 500ms 8.35s ease both;
 }
 
-.intro-orbit-1 {
-    border: 10px solid rgba(225, 25, 40, 0.92);
-    box-shadow: 0 0 40px rgba(255, 30, 50, 0.8), inset 0 0 30px rgba(255, 30, 50, 0.6);
-    animation: intro-orbit-a 5.2s 1.4s cubic-bezier(0.3, 0, 0.3, 1) both;
+/* White and dark stripes wrapping the globe (centre 1560,560) */
+.ix-wrap {
+    position: absolute;
+    left: 1560px; top: 560px;
+    border-radius: 50%;
+    border-style: solid;
+    border-color: transparent;
+    transform-style: preserve-3d;
 }
 
-.intro-orbit-2 {
-    width: 1500px;
-    height: 1500px;
-    margin: -750px 0 0 -750px;
-    border: 3px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 0 0 22px rgba(255, 255, 255, 0.8);
-    animation: intro-orbit-b 5s 1.8s cubic-bezier(0.3, 0, 0.3, 1) both;
+.ix-w1 {
+    width: 1220px; height: 1220px; margin: -610px;
+    border-width: 46px;
+    border-bottom-color: #FFFFFF;
+    border-left-color: #FFFFFF;
+    filter: drop-shadow(0 14px 16px rgba(60, 0, 10, 0.4));
+    animation: ix-wrap-a 3.6s 8.4s cubic-bezier(0.16, 0.7, 0.3, 1) both;
 }
 
-@keyframes intro-orbit-a {
-    0%   { opacity: 0; transform: rotateZ(-22deg) rotateX(76deg) rotateZ(0deg) scale(0.4); }
-    20%  { opacity: 1; }
-    85%  { opacity: 1; }
-    100% { opacity: 0; transform: rotateZ(-22deg) rotateX(76deg) rotateZ(540deg) scale(0.9); }
+.ix-w2 {
+    width: 1140px; height: 1140px; margin: -570px;
+    border-width: 10px;
+    border-bottom-color: #1C0508;
+    border-left-color: #1C0508;
+    animation: ix-wrap-b 3.6s 8.4s cubic-bezier(0.16, 0.7, 0.3, 1) both;
 }
 
-@keyframes intro-orbit-b {
-    0%   { opacity: 0; transform: rotateZ(-12deg) rotateX(80deg) rotateZ(0deg) scale(0.5); }
-    20%  { opacity: 0.9; }
-    85%  { opacity: 0.9; }
-    100% { opacity: 0; transform: rotateZ(-12deg) rotateX(80deg) rotateZ(-420deg) scale(1); }
+.ix-w3 {
+    width: 1320px; height: 1320px; margin: -660px;
+    border-width: 22px;
+    border-bottom-color: var(--red);
+    border-left-color: var(--red);
+    animation: ix-wrap-c 3.6s 8.4s cubic-bezier(0.16, 0.7, 0.3, 1) both;
 }
 
+@keyframes ix-wrap-a {
+    from { transform: rotate(-24deg) rotateX(66deg) rotateZ(-80deg); }
+    to   { transform: rotate(-24deg) rotateX(66deg) rotateZ(10deg); }
+}
+
+@keyframes ix-wrap-b {
+    from { transform: rotate(-30deg) rotateX(70deg) rotateZ(-120deg); }
+    to   { transform: rotate(-30deg) rotateX(70deg) rotateZ(-6deg); }
+}
+
+@keyframes ix-wrap-c {
+    from { transform: rotate(-18deg) rotateX(62deg) rotateZ(-40deg); }
+    to   { transform: rotate(-18deg) rotateX(62deg) rotateZ(26deg); }
+}
+
+/* Soft white haze over the far side of the globe, as in the reference end frame */
+.ix-fade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(225deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 28%);
+    pointer-events: none;
+}
+
+/* Station box: small name line over a big NEWS, in a solid red block */
+.ix-box {
+    position: absolute;
+    left: 150px;
+    top: 690px;
+    width: 340px;
+    height: 250px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: linear-gradient(180deg, #D3142F 0%, var(--red) 60%, #A80C1F 100%);
+    color: #FFFFFF;
+    box-shadow: 0 16px 34px rgba(110, 0, 15, 0.3);
+    animation: ix-box-in 600ms 8.7s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+.ix-box-top {
+    padding: 4px 12px;
+    border: 3px solid #FFFFFF;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 30px;
+    letter-spacing: 7px;
+    animation: ix-wipe 500ms 9.0s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.ix-box-name {
+    font-family: var(--font-ui);
+    font-weight: 400;
+    font-size: 96px;
+    line-height: 1;
+    letter-spacing: 2px;
+    animation: ix-wipe 600ms 9.15s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.ix-edition {
+    position: absolute;
+    left: 150px;
+    top: 962px;
+    width: 340px;
+    text-align: center;
+    color: #6D727C;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 20px;
+    letter-spacing: 6px;
+    animation: ix-appear 800ms 9.6s ease both;
+}
+
+@keyframes ix-box-in {
+    from { opacity: 0; transform: scale(0.6); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ix-wipe {
+    from { clip-path: inset(0 100% 0 0); }
+    to   { clip-path: inset(0 0 0 0); }
+}
+
+/* White flash on the theme's impact hit */
 .intro-flash {
     position: absolute;
     inset: 0;
     background: #FFFFFF;
     opacity: 0;
+    pointer-events: none;
     animation: intro-flash 800ms 6.2s ease-out both;
 }
 
@@ -1055,54 +1328,6 @@ body.on-graphic .station-chip { opacity: 0; }
     0%   { opacity: 0; }
     25%  { opacity: 0.95; }
     100% { opacity: 0; }
-}
-
-/* Brand build */
-.intro-brand .brand-e { animation: intro-pop 450ms 7.0s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
-.intro-brand .brand-name { animation: intro-wipe 550ms 7.25s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.intro-brand .brand-edition { animation: intro-edition 900ms 7.7s ease-out both; }
-
-.intro-brand .brand-row > *,
-.intro-brand .brand-edition,
-.intro-copy > * { animation-play-state: paused; }
-
-@keyframes intro-pop {
-    from { opacity: 0; transform: scale(0); }
-    to   { opacity: 1; transform: scale(1); }
-}
-
-@keyframes intro-wipe {
-    from { clip-path: inset(0 100% 0 0); }
-    to   { clip-path: inset(0 0 0 0); }
-}
-
-@keyframes intro-edition {
-    from { opacity: 0; letter-spacing: 28px; }
-    to   { opacity: 1; letter-spacing: 7.5px; }
-}
-
-.intro-copy {
-    position: absolute;
-    left: var(--edge-x);
-    top: 332px;
-    width: 900px;
-}
-
-.intro-copy .slide-badge { animation: intro-wipe 450ms 8.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.intro-copy .slide-title { animation: intro-rise 700ms 8.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-
-@keyframes intro-rise {
-    from { opacity: 0; transform: translateY(40px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-.intro-floor {
-    animation: intro-floor 600ms 6.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-@keyframes intro-floor {
-    from { transform: translateY(100%); }
-    to   { transform: translateY(0); }
 }
 
 /* ==========================================================================

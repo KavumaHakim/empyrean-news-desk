@@ -123,32 +123,88 @@
         <div id="layer-intro" class="intro-layer hidden" aria-hidden="true">
             <video id="intro-video" class="intro-video" preload="auto" playsinline></video>
             <audio id="intro-audio" preload="auto"></audio>
+            <!-- World-news globe sequence: white map, red globe, sweeping ribbons -->
             <div id="intro-motion" class="intro-motion">
-                <div class="intro-dark"></div>
-                <div class="intro-streak intro-streak-1"></div>
-                <div class="intro-streak intro-streak-2"></div>
-                <div class="intro-streak intro-streak-3"></div>
-                <div class="intro-pips">
-                    <span></span><span></span><span></span><span></span><span></span><span></span>
+                <!-- Light world map with city tags (under every white scene) -->
+                <div class="ix-map">
+                    <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
+                        <g class="ix-map-lines">
+                            <path d="M210 250 L640 410 L1040 300 L1420 470"/>
+                            <path d="M640 410 L520 760 L880 900"/>
+                            <path d="M1040 300 L1180 640 L1560 820"/>
+                            <path d="M300 620 L520 760"/>
+                            <path d="M1180 640 L880 900"/>
+                            <path d="M1420 470 L1700 260"/>
+                        </g>
+                        <g class="ix-map-dots">
+                            <circle cx="210" cy="250" r="4"/><circle cx="640" cy="410" r="4"/>
+                            <circle cx="1040" cy="300" r="4"/><circle cx="1420" cy="470" r="4"/>
+                            <circle cx="520" cy="760" r="4"/><circle cx="880" cy="900" r="4"/>
+                            <circle cx="1180" cy="640" r="4"/><circle cx="1560" cy="820" r="4"/>
+                            <circle cx="300" cy="620" r="4"/><circle cx="1700" cy="260" r="4"/>
+                        </g>
+                        <g class="ix-map-labels">
+                            <text x="226" y="240">WASHINGTON DC</text>
+                            <text x="656" y="400">LONDON</text>
+                            <text x="1056" y="290">BERLIN</text>
+                            <text x="1436" y="460">DELHI</text>
+                            <text x="536" y="750">CAIRO</text>
+                            <text x="896" y="890">KAMPALA</text>
+                            <text x="1196" y="630">JERUSALEM</text>
+                            <text x="1576" y="810">SYDNEY</text>
+                            <text x="316" y="610">MADRID</text>
+                            <text x="1716" y="250">BEIJING</text>
+                        </g>
+                    </svg>
                 </div>
-                <div class="intro-light studio-bg"></div>
-                <div class="intro-globe studio-globe"></div>
-                <div class="intro-globe-final studio-globe"></div>
-                <div class="intro-orbit intro-orbit-1"></div>
-                <div class="intro-orbit intro-orbit-2"></div>
-                <div class="intro-flash"></div>
-                <div class="intro-brand brand">
-                    <div class="brand-row">
-                        <span class="brand-e">E</span>
-                        <span class="brand-name">EMPYREAN NEWS</span>
+
+                <!-- 1. Extreme close-up: globe surface, ribbons sweeping past -->
+                <div class="ix-scene ix-s1">
+                    <div class="ix-globe ix-globe-close"></div>
+                    <div class="ix-ribbon ix-r1"></div>
+                    <div class="ix-ribbon ix-r2"></div>
+                    <div class="ix-ribbon ix-r3"></div>
+                </div>
+
+                <!-- 2. Concentric target rings spinning in depth -->
+                <div class="ix-scene ix-s2">
+                    <div class="ix-glow"></div>
+                    <div class="ix-target">
+                        <span></span><span></span><span></span><span></span><span></span><span></span>
                     </div>
-                    <div class="brand-edition">THE FAREWELL EDITION</div>
                 </div>
-                <div class="intro-copy">
-                    <div class="slide-badge">SPECIAL BROADCAST</div>
-                    <div class="slide-title">ONE CLASS.<br>ONE FAREWELL.</div>
+
+                <!-- 3. Dark red pass: globe silhouette, light bands, flare -->
+                <div class="ix-scene ix-s3">
+                    <div class="ix-globe ix-globe-dark"></div>
+                    <div class="ix-band ix-b1"></div>
+                    <div class="ix-band ix-b2"></div>
+                    <div class="ix-band ix-b3"></div>
+                    <div class="ix-flare"></div>
                 </div>
-                <div class="intro-floor studio-floor"></div>
+
+                <!-- 4. Ribbon spiral wrapping round an unseen core -->
+                <div class="ix-scene ix-s4">
+                    <div class="ix-spiral">
+                        <span></span><span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
+
+                <!-- End frame: globe wrapped in stripes + station box -->
+                <div class="ix-end">
+                    <div class="ix-globe ix-globe-end"></div>
+                    <div class="ix-wrap ix-w1"></div>
+                    <div class="ix-wrap ix-w2"></div>
+                    <div class="ix-wrap ix-w3"></div>
+                    <div class="ix-fade"></div>
+                    <div class="ix-box">
+                        <div class="ix-box-top">EMPYREAN</div>
+                        <div class="ix-box-name">NEWS</div>
+                    </div>
+                    <div class="ix-edition">THE FAREWELL EDITION</div>
+                </div>
+
+                <div class="intro-flash"></div>
             </div>
         </div>
 
