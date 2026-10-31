@@ -1293,6 +1293,11 @@ public class MainViewModel : ViewModelBase
                 // Emergency filler: the theme intro straight to air
                 PlayIntroCommand.Execute(null);
                 return true;
+            case Key.F9:
+                // The all-headlines page on / off
+                if (ToggleHeadlinesBoardCommand.CanExecute(null)) ToggleHeadlinesBoardCommand.Execute(null);
+                else StatusNotification = "All headlines: tick HL on at least one story (and stop the headlines segment) first.";
+                return true;
             case Key.Space:
                 if (_stateManager.State.IsPlaying)
                     PauseCommand.Execute(null);

@@ -1449,7 +1449,7 @@
 
         // If this window has keyboard focus, operator shortcuts (Esc emergency
         // standby above all) must still reach the control room.
-        const shortcutKeys = ['Escape', 'F5', 'F6', 'F7', 'F8', ' '];
+        const shortcutKeys = ['Escape', 'F5', 'F6', 'F7', 'F8', 'F9', ' '];
         document.addEventListener('keydown', (e) => {
             if (!shortcutKeys.includes(e.key) || e.repeat) return;
             e.preventDefault();

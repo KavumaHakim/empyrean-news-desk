@@ -74,7 +74,7 @@ public partial class BroadcastWindow : Window
         // other keys arrive from the canvas as "key" web messages.
         PreviewKeyDown += (s, e) =>
         {
-            if (e.Key is Key.Escape or Key.F5 or Key.F6 or Key.F7 or Key.F8 or Key.Space)
+            if (e.Key is Key.Escape or Key.F5 or Key.F6 or Key.F7 or Key.F8 or Key.F9 or Key.Space)
             {
                 e.Handled = true;
                 if (!e.IsRepeat) ShortcutKeyPressed?.Invoke(this, e.Key);
@@ -190,6 +190,7 @@ public partial class BroadcastWindow : Window
                     "F6" => Key.F6,
                     "F7" => Key.F7,
                     "F8" => Key.F8,
+                    "F9" => Key.F9,
                     " " => Key.Space,
                     _ => null
                 };

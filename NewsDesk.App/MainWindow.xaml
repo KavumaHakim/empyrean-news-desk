@@ -1036,6 +1036,12 @@
                         </Grid>
                         <Grid Margin="0,0,0,5">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource LayerToggle}" Tag="{Binding IsHeadlinesBoardLive}" Command="{Binding ToggleHeadlinesBoardCommand}" ToolTip="Every headline on screen at once (F9)"/>
+                            <TextBlock Grid.Column="1" Text="All headlines  (F9)" Style="{StaticResource LayerName}"/>
+                            <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="1"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <Button Style="{StaticResource LayerToggle}" Tag="{Binding IsTickerVisible}" Command="{Binding ToggleTickerVisibleCommand}"/>
                             <TextBlock Grid.Column="1" Text="News ticker" Style="{StaticResource LayerName}"/>
                             <Button Grid.Column="2" Style="{StaticResource EditButton}" CommandParameter="2"/>
@@ -1699,6 +1705,7 @@
                                     <Run Text="F6" FontFamily="Consolas" FontWeight="Bold" Foreground="#4A93F0"/><Run Text="   Toggle standby slate"/><LineBreak/>
                                     <Run Text="F7" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="   Breaking news live"/><LineBreak/>
                                     <Run Text="F8" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="   Theme intro to air (emergency filler)"/><LineBreak/>
+                                    <Run Text="F9" FontFamily="Consolas" FontWeight="Bold" Foreground="#4A93F0"/><Run Text="   All headlines on screen / off"/><LineBreak/>
                                     <Run Text="Space" FontFamily="Consolas" FontWeight="Bold"/><Run Text="  Play / pause program video"/><LineBreak/>
                                     <Run Text="Esc" FontFamily="Consolas" FontWeight="Bold"/><Run Text="   Emergency standby"/>
                                 </TextBlock>
@@ -1718,7 +1725,9 @@
                     <Border Grid.Row="0" Style="{StaticResource DockHeader}">
                         <TextBlock Text="CONTROLS" Style="{StaticResource DockTitle}"/>
                     </Border>
-                    <StackPanel Grid.Row="1" Margin="10,8,10,8">
+                    <!-- Scrolls when its sections outgrow the dock, so no button is ever cut off -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10,8,10,8">
                         <!-- Breaking news -->
                         <Border Background="#2A050B" BorderBrush="#7E1220" BorderThickness="1" Padding="8" Margin="0,0,0,10">
                             <StackPanel>
@@ -1763,6 +1772,7 @@
                             <Button Content="TICKER ↑" Command="{Binding PublishTickerCommand}" Style="{StaticResource SmallButton}" Margin="2,0,0,0" ToolTip="Publish the ticker draft to air"/>
                         </UniformGrid>
                     </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </Border>
         </Grid>
@@ -1776,7 +1786,7 @@
                     <TextBlock Text="STATUS" Style="{StaticResource MicroLabel}" Margin="0,0,8,0"/>
                     <TextBlock Text="{Binding StatusNotification}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMid}" TextTrimming="CharacterEllipsis" MaxWidth="1050"/>
                 </StackPanel>
-                <TextBlock Text="F5 Take · F6 Standby · F7 Breaking · F8 Intro · Space Play/Pause · Esc Emergency" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Foreground="{StaticResource TextDim}"/>
+                <TextBlock Text="F5 Take · F6 Standby · F7 Breaking · F8 Intro · F9 All headlines · Space Play/Pause · Esc Emergency" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Foreground="{StaticResource TextDim}"/>
             </Grid>
         </Border>
 
