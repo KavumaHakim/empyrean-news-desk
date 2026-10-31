@@ -68,6 +68,11 @@ public class MainViewModel : ViewModelBase
 
         // Camera formats (.mts, .cr3 …) are converted to playable copies before use
         private readonly MediaConverter _converter = new() { StillDecoder = WicStillDecoder.TryConvert };
+        private readonly Dictionary<int, Task<bool>> _upgrades = [];
+
+        // Bumped on every Preview cue, so a cue that waited on a conversion can tell it was superseded
+        private int _cueRequest;
+
 
         // Voice-over & speaker windows (persisted in Settings)
         private VoiceOverConfig _voConfig = new();
@@ -750,6 +755,9 @@ public class MainViewModel : ViewModelBase
 
         // Load Displays
         RefreshDisplays();
+
+        // Library items still pointing at raw camera files get converted in the background
+        _ = UpgradeCameraItemsAsync();
     }
 
     private void RefreshDisplays()
@@ -882,6 +890,72 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Converts every library item that still points at a raw camera file, one at a time.
+    /// </summary>
+    private async Task UpgradeCameraItemsAsync()
+    {
+        foreach (var media in MediaLibrary.Where(m => MediaConverter.NeedsConversion(m.FilePath) && File.Exists(m.FilePath)).ToList())
+        {
+            await UpgradeLibraryItemAsync(media);
+        }
+    }
+
+    private async Task CueAfterConversionAsync(MediaItem media, int request)
+    {
+        if (!await UpgradeLibraryItemAsync(media)) return;
+
+        // Only cue it if the operator hasn't cued something else while it converted
+        if (request == _cueRequest) PreparePreview(media);
+        else StatusNotification = $"'{media.Title}' is converted and ready — cue it again to use it.";
+    }
+
+    /// <summary>
+    /// Swaps a library item from its raw camera file to a converted copy, everywhere
+    /// the app holds it (library, rundown copies, the media server). One conversion
+    /// per item even when startup and a cue ask at the same time.
+    /// </summary>
+    private Task<bool> UpgradeLibraryItemAsync(MediaItem media)
+    {
+        if (!MediaConverter.NeedsConversion(media.FilePath)) return Task.FromResult(true);
+        if (_upgrades.TryGetValue(media.Id, out var running)) return running;
+
+        var task = UpgradeCoreAsync(media);
+        _upgrades[media.Id] = task;
+        return task;
+
+        async Task<bool> UpgradeCoreAsync(MediaItem item)
+        {
+            try
+            {
+                var original = item.FilePath;
+                var playable = await ConvertForBroadcastAsync(original);
+                if (playable == null) return false;
+
+                var copies = MediaLibrary.Where(m => m.Id == item.Id)
+                    .Concat(RundownItems.Where(r => r.MediaItemId == item.Id).Select(r => r.MediaItem))
+                    .Append(item)
+                    .Where(m => m != null)
+                    .Distinct();
+                foreach (var copy in copies)
+                {
+                    copy!.OriginalPath = original;
+                    copy.FilePath = playable;
+                    copy.IsAvailable = true;
+                }
+
+                _db.UpdateMedia(item);
+                _server.RegisterApprovedMedia(item.Id, playable);
+                ApplyMediaFilter();
+                return true;
+            }
+            finally
+            {
+                _upgrades.Remove(item.Id);
+            }
+        }
+    }
+
+    /// <summary>
     /// Returns a canvas-playable path for the file, converting camera formats first
     /// (status bar shows progress). Null when conversion failed; the reason is shown.
     /// </summary>
@@ -1000,6 +1074,16 @@ public class MainViewModel : ViewModelBase
 
     private void PreparePreview(MediaItem media)
     {
+        int request = ++_cueRequest;
+
+        // A raw camera file (e.g. .mts imported before conversion existed) would play
+        // in the dashboard but never on the projector: convert it first, then cue.
+        if (MediaConverter.NeedsConversion(media.FilePath))
+        {
+            _ = CueAfterConversionAsync(media, request);
+            return;
+        }
+
         _stateManager.SelectPreviewMedia(media);
 
         // A fresh cue invalidates the previous prepared handshake; TAKE LIVE
@@ -1352,6 +1436,7 @@ public class MainViewModel : ViewModelBase
     /// </summary>
     private void PreviewHeadlineWith(HeadlineDraft draft)
     {
+        ++_cueRequest; // supersedes any cue still waiting on a conversion
         _stateManager.SelectPreviewGraphic(draft);
 
         // Prepared handshake also applies to graphic scenes (canvas confirms instantly)

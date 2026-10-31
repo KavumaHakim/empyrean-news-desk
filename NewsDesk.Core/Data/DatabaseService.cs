@@ -365,7 +365,8 @@ public class DatabaseService : IDisposable
                 Description = $description,
                 IsAvailable = $isAvailable,
                 CaptionName = $captionName,
-                CaptionTitle = $captionTitle
+                CaptionTitle = $captionTitle,
+                OriginalPath = $originalPath
             WHERE Id = $id;
         ";
         cmd.Parameters.AddWithValue("$id", item.Id);
@@ -378,6 +379,7 @@ public class DatabaseService : IDisposable
         cmd.Parameters.AddWithValue("$isAvailable", item.IsAvailable ? 1 : 0);
         cmd.Parameters.AddWithValue("$captionName", item.CaptionName ?? string.Empty);
         cmd.Parameters.AddWithValue("$captionTitle", item.CaptionTitle ?? string.Empty);
+        cmd.Parameters.AddWithValue("$originalPath", item.OriginalPath ?? string.Empty);
         cmd.ExecuteNonQuery();
     }
 
