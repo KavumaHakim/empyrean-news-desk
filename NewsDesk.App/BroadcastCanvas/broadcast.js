@@ -1249,6 +1249,69 @@
         document.body.classList.remove('lt-live');
     }
 
+    // ------------------------------------------------------------------
+    // HEADLINES AT THE SIDE: the text panel on the left, the scene framed on
+    // the right. 'single' = the headline currently on air in the segment;
+    // 'board' = every headline at once.
+    // ------------------------------------------------------------------
+    const sidePanel = document.getElementById('side-panel');
+    const sideTag = document.getElementById('side-tag');
+    const sideCount = document.getElementById('side-count');
+    const sideSingle = document.getElementById('side-single');
+    const sideTitle = document.getElementById('side-title');
+    const sideCaption = document.getElementById('side-caption');
+    const sideList = document.getElementById('side-list');
+
+    function restartAnimations(el) {
+        el.style.animation = 'none';
+        void el.offsetWidth;
+        el.style.animation = '';
+    }
+
+    function openSidePanel() {
+        const wasOpen = document.body.classList.contains('side-layout');
+        document.body.classList.add('side-layout');
+        sidePanel.classList.remove('hidden');
+        if (!wasOpen) restartAnimations(sidePanel);
+    }
+
+    function closeSidePanel() {
+        document.body.classList.remove('side-layout');
+        sidePanel.classList.add('hidden');
+    }
+
+    function showHeadlineSide(data) {
+        data = data || {};
+        sideTag.textContent = data.tag || 'HEADLINES';
+        sideCount.textContent = data.total > 1 ? `${data.number} / ${data.total}` : '';
+        sideTitle.textContent = data.title || '';
+        sideCaption.textContent = data.caption || '';
+        sideList.classList.add('hidden');
+        sideSingle.classList.remove('hidden');
+        restartAnimations(sideTitle);
+        restartAnimations(sideCaption);
+        openSidePanel();
+    }
+
+    function showHeadlinesBoard(data) {
+        data = data || {};
+        const items = data.items || [];
+        sideTag.textContent = data.title || "TODAY'S HEADLINES";
+        sideCount.textContent = '';
+        sideSingle.classList.add('hidden');
+        sideList.classList.remove('hidden');
+        sideList.classList.toggle('dense', items.length > 7); // up to 7 fit at full size
+        sideList.innerHTML = items.map((item, i) => `
+            <li style="animation-delay:${200 + i * 140}ms">
+                <span class="side-num">${i + 1}</span>
+                <div>
+                    <div class="side-item-title">${escapeHtml(item.title)}</div>
+                    <div class="side-item-caption">${escapeHtml(item.caption || '')}</div>
+                </div>
+            </li>`).join('');
+        openSidePanel();
+    }
+
     function toggleStandby(active) {
         isStandby = active;
         if (active) {
@@ -1355,6 +1418,16 @@
             case 'show_speakers':
                 showSpeakers(msg.data);
                 break;
+            case 'show_headline_side':
+                showHeadlineSide(msg.data);
+                break;
+            case 'show_headlines_board':
+                showHeadlinesBoard(msg.data);
+                break;
+            case 'hide_headline_side':
+            case 'hide_headlines_board':
+                closeSidePanel();
+                break;
             case 'hide_speakers':
                 hideSpeakers();
                 break;
@@ -1400,6 +1473,9 @@
         startVoiceOverFromProgram,
         stopVoiceOver,
         showSpeakers,
+        showHeadlineSide,
+        showHeadlinesBoard,
+        closeSidePanel,
         hideSpeakers
     };
 

@@ -1201,10 +1201,11 @@
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Select a video or picture in SOURCES, then + ADD. Headlines play top to bottom." Style="{StaticResource MicroLabel}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <TextBlock Grid.Row="0" Text="TYPE ALL… enters every headline and caption at once (or double-click a cell to edit). + ADD puts the source selected in SOURCES behind a headline." Style="{StaticResource MicroLabel}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,6"/>
                                 <DataGrid Grid.Row="1" ItemsSource="{Binding HeadlineSequence}"
                                           SelectedItem="{Binding SelectedHeadlineItem}"
-                                          IsReadOnly="True" SelectionMode="Single" RowHeight="38">
+                                          IsReadOnly="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                          SelectionMode="Single" RowHeight="38">
                                     <DataGrid.RowStyle>
                                         <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                                             <Style.Triggers>
@@ -1216,8 +1217,8 @@
                                         </Style>
                                     </DataGrid.RowStyle>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="28"/>
-                                        <DataGridTemplateColumn Header="MEDIA" Width="62">
+                                        <DataGridTextColumn Header="#" Binding="{Binding Number, Mode=OneWay}" Width="28" IsReadOnly="True"/>
+                                        <DataGridTemplateColumn Header="MEDIA" Width="62" IsReadOnly="True">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <Border Width="54" Height="30" Background="#0A1428" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" ToolTip="{Binding MediaLabel}">
@@ -1238,11 +1239,18 @@
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
+                                            <DataGridTemplateColumn.CellEditingTemplate>
+                                                <DataTemplate>
+                                                    <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" VerticalContentAlignment="Center"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellEditingTemplate>
                                         </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="CAPTION" Binding="{Binding Subtitle, UpdateSourceTrigger=PropertyChanged}" Width="*" Foreground="{StaticResource TextMid}"/>
                                         <DataGridTextColumn Header="SECS" Binding="{Binding DurationSeconds}" Width="44"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
                                 <WrapPanel Grid.Row="2" Margin="0,6,0,0">
+                                    <Button Content="📝 TYPE ALL…" Command="{Binding EditAllHeadlinesCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,6,0" ToolTip="Enter or paste every headline with its caption at once"/>
                                     <Button Content="+ ADD" Command="{Binding AddHeadlineItemCommand}" Style="{StaticResource SmallPrimary}" Margin="0,0,6,0" ToolTip="Add a headline over the source selected in SOURCES (or a plain headline slide)"/>
                                     <Button Content="▲" Command="{Binding MoveHeadlineUpCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Move up"/>
                                     <Button Content="▼" Command="{Binding MoveHeadlineDownCommand}" Style="{StaticResource SmallButton}" Margin="0,0,6,0" ToolTip="Move down"/>
@@ -1288,7 +1296,23 @@
                                         </WrapPanel>
                                     </StackPanel>
 
-                                    <TextBlock Text="PLAY SEGMENT" Style="{StaticResource FieldLabel}"/>
+                                    <TextBlock Text="ALL AT ONCE" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding HeadlinesBoardTitle, UpdateSourceTrigger=LostFocus}" Padding="6,3" Margin="0,0,0,4" ToolTip="Heading shown above the list"/>
+                                    <Button Command="{Binding ToggleHeadlinesBoardCommand}" Margin="0,0,0,10"
+                                            ToolTip="Every headline and caption on screen together: text on the left, the program's video or picture framed on the right">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource SmallPrimary}">
+                                                <Setter Property="Content" Value="▦ SHOW ALL HEADLINES"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsHeadlinesBoardLive}" Value="True">
+                                                        <Setter Property="Content" Value="■ HIDE ALL HEADLINES"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+
+                                    <TextBlock Text="PLAY SEGMENT (one by one)" Style="{StaticResource FieldLabel}"/>
                                     <Grid Margin="0,0,0,4">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="4"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <Button Content="▶ PLAY HEADLINES" Command="{Binding PlayHeadlinesCommand}" Style="{StaticResource SmallPrimary}" ToolTip="Take every headline live in order, from the top"/>

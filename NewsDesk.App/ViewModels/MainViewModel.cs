@@ -558,6 +558,27 @@ public class MainViewModel : ViewModelBase
     public RelayCommand ClearHeadlineMediaCommand { get; }
     public RelayCommand CueHeadlineItemCommand { get; }
     public RelayCommand PlayHeadlinesCommand { get; }
+    public RelayCommand EditAllHeadlinesCommand { get; }
+    public RelayCommand ToggleHeadlinesBoardCommand { get; }
+
+    // "Today's headlines" board: every headline and caption on screen at once
+    private bool _isHeadlinesBoardLive;
+    public bool IsHeadlinesBoardLive
+    {
+        get => _isHeadlinesBoardLive;
+        private set => SetProperty(ref _isHeadlinesBoardLive, value);
+    }
+
+    private string _headlinesBoardTitle = "TODAY'S HEADLINES";
+    public string HeadlinesBoardTitle
+    {
+        get => _headlinesBoardTitle;
+        set
+        {
+            if (!SetProperty(ref _headlinesBoardTitle, value)) return;
+            _db.SetSetting("Headlines_BoardTitle", value ?? string.Empty);
+        }
+    }
     public RelayCommand NextHeadlineCommand { get; }
     public RelayCommand PreviousHeadlineCommand { get; }
     public RelayCommand StopHeadlinesCommand { get; }
@@ -639,6 +660,12 @@ public class MainViewModel : ViewModelBase
         ClearHeadlineMediaCommand = new RelayCommand(ClearHeadlineMedia, () => SelectedHeadlineItem?.MediaItem != null);
         CueHeadlineItemCommand = new RelayCommand(CueHeadlineItem, () => SelectedHeadlineItem != null && !IsHeadlinesPlaying);
         PlayHeadlinesCommand = new RelayCommand(() => _ = PlayHeadlinesAsync(), () => HeadlineSequence.Count > 0 && !IsHeadlinesPlaying);
+        EditAllHeadlinesCommand = new RelayCommand(EditAllHeadlines, () => !IsHeadlinesPlaying);
+        ToggleHeadlinesBoardCommand = new RelayCommand(() =>
+        {
+            if (IsHeadlinesBoardLive) HideHeadlinesBoard();
+            else ShowHeadlinesBoard();
+        }, () => IsHeadlinesBoardLive || (HeadlineSequence.Count > 0 && !IsHeadlinesPlaying));
         NextHeadlineCommand = new RelayCommand(() => _ = StepHeadlinesAsync(1), () => IsHeadlinesPlaying);
         PreviousHeadlineCommand = new RelayCommand(() => _ = StepHeadlinesAsync(-1), () => IsHeadlinesPlaying && _headlineIndex > 0);
         StopHeadlinesCommand = new RelayCommand(() => StopHeadlines("Headlines stopped."), () => IsHeadlinesPlaying);
@@ -723,8 +750,11 @@ public class MainViewModel : ViewModelBase
         foreach (var d in drafts) HeadlineDrafts.Add(d);
         if (HeadlineDrafts.Count > 0) EditingHeadline = HeadlineDrafts[0];
 
+        _headlinesBoardTitle = _db.GetSetting("Headlines_BoardTitle", "TODAY'S HEADLINES") ?? "TODAY'S HEADLINES";
+
         // Load the headlines segment, resolving each entry's video/picture from the library
         HeadlineSequence.Clear();
+
         foreach (var h in _db.GetHeadlineSequence())
         {
             var mediaId = h.MediaItemId;
@@ -1488,6 +1518,9 @@ public class MainViewModel : ViewModelBase
     // The lower third the segment put on air (so stopping never clears an operator's own graphic)
     private HeadlineDraft? _headlineBanner;
 
+    // True while the canvas shows a headline as text-left / media-right
+    private bool _isHeadlineSideOn;
+
     private HeadlineSequenceItem? CurrentHeadline =>
         _headlineIndex >= 0 && _headlineIndex < HeadlineSequence.Count ? HeadlineSequence[_headlineIndex] : null;
 
@@ -1603,6 +1636,7 @@ public class MainViewModel : ViewModelBase
     {
         if (HeadlineSequence.Count == 0 || IsHeadlinesPlaying) return;
 
+        if (IsHeadlinesBoardLive) HideHeadlinesBoard(); // the segment uses the same side panel
         IsHeadlinesPlaying = true;
         _manualCueSinceTake = false;
         await GoToHeadlineAsync(0, 1);
@@ -1680,7 +1714,8 @@ public class MainViewModel : ViewModelBase
             return false;
         }
 
-        // A picture or video carries the headline as a lower third; a slide already shows it full-screen
+        // A picture or video goes in a frame on the right with the headline text beside it;
+        // a slide already shows the headline full-screen
         if (item.MediaItem != null) PublishHeadlineBanner(item);
         else ClearHeadlineBanner();
 
@@ -1690,14 +1725,24 @@ public class MainViewModel : ViewModelBase
 
     private void PublishHeadlineBanner(HeadlineSequenceItem item)
     {
-        var banner = BuildHeadlineDraft(item, fullSlide: false);
-        _headlineBanner = banner;
-        _stateManager.PublishLiveGraphic(banner);
-        SendCanvasCommand("publish_headline", banner);
+        _isHeadlineSideOn = true;
+        SendCanvasCommand("show_headline_side", new
+        {
+            number = item.Number,
+            total = HeadlineSequence.Count,
+            tag = string.IsNullOrWhiteSpace(item.Category) ? "HEADLINES" : item.Category,
+            title = item.Title,
+            caption = item.Subtitle
+        });
     }
 
     private void ClearHeadlineBanner()
     {
+        if (_isHeadlineSideOn)
+        {
+            _isHeadlineSideOn = false;
+            SendCanvasCommand("hide_headline_side");
+        }
         if (_headlineBanner != null && ReferenceEquals(_stateManager.State.LiveGraphic, _headlineBanner))
         {
             _stateManager.ClearLiveGraphic();
@@ -1741,8 +1786,95 @@ public class MainViewModel : ViewModelBase
         _ = StepHeadlinesAsync(1);
     }
 
+    /// <summary>
+    /// Edit the whole segment as text (one "HEADLINE | caption" per line). Line N
+    /// updates headline N in place, so its video or picture and seconds are kept.
+    /// </summary>
+    private void EditAllHeadlines()
+    {
+        var dialog = new BulkHeadlinesDialog(HeadlineListText.Format(HeadlineSequence))
+        {
+            Owner = Application.Current?.MainWindow
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        var lines = dialog.Headlines;
+        int updated = 0, added = 0, removed = 0;
+
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var (title, caption) = lines[i];
+            if (i < HeadlineSequence.Count)
+            {
+                var item = HeadlineSequence[i];
+                if (item.Title == title && item.Subtitle == caption) continue;
+                item.Title = title;      // each change saves through OnHeadlineItemChanged
+                item.Subtitle = caption;
+                updated++;
+            }
+            else
+            {
+                var item = new HeadlineSequenceItem { Title = title, Subtitle = caption, OrderIndex = i };
+                _db.SaveHeadlineSequenceItem(item);
+                item.PropertyChanged += OnHeadlineItemChanged;
+                HeadlineSequence.Add(item);
+                added++;
+            }
+        }
+
+        while (HeadlineSequence.Count > lines.Count)
+        {
+            var extra = HeadlineSequence[^1];
+            extra.PropertyChanged -= OnHeadlineItemChanged;
+            _db.DeleteHeadlineSequenceItem(extra.Id);
+            HeadlineSequence.RemoveAt(HeadlineSequence.Count - 1);
+            removed++;
+        }
+
+        RenumberHeadlines();
+        _db.UpdateHeadlineSequenceOrder(HeadlineSequence.ToList());
+        if (SelectedHeadlineItem != null && !HeadlineSequence.Contains(SelectedHeadlineItem))
+            SelectedHeadlineItem = HeadlineSequence.LastOrDefault();
+        CommandManager.InvalidateRequerySuggested();
+
+        if (IsHeadlinesBoardLive) ShowHeadlinesBoard(); // board on air follows the edit
+        StatusNotification = $"Headlines saved: {updated} changed, {added} added, {removed} removed — {HeadlineSequence.Count} in total.";
+    }
+
+    private void ShowHeadlinesBoard()
+    {
+        if (HeadlineSequence.Count == 0)
+        {
+            StatusNotification = "No headlines yet — use TYPE ALL… to enter them.";
+            return;
+        }
+        if (_broadcastWindow == null)
+        {
+            StatusNotification = "Open the broadcast output (projector) before showing the headlines.";
+            return;
+        }
+
+        SendCanvasCommand("show_headlines_board", new
+        {
+            title = string.IsNullOrWhiteSpace(HeadlinesBoardTitle) ? "TODAY'S HEADLINES" : HeadlinesBoardTitle.Trim(),
+            items = HeadlineSequence.Select(h => new { title = h.Title, caption = h.Subtitle }).ToList()
+        });
+        IsHeadlinesBoardLive = true;
+        CommandManager.InvalidateRequerySuggested();
+        StatusNotification = $"ALL HEADLINES ON AIR: {HeadlineSequence.Count} headline(s) on screen together.";
+    }
+
+    private void HideHeadlinesBoard()
+    {
+        SendCanvasCommand("hide_headlines_board");
+        IsHeadlinesBoardLive = false;
+        CommandManager.InvalidateRequerySuggested();
+        StatusNotification = "Headlines board cleared from air.";
+    }
+
     private void StopHeadlines(string message)
     {
+
         _headlineRun++;
         _headlineTimer?.Stop();
         foreach (var h in HeadlineSequence) h.IsOnAir = false;
@@ -2426,6 +2558,7 @@ public class MainViewModel : ViewModelBase
                     SendCanvasCommand("stop_voice_over");
                 }
                 if (_stateManager.State.AreSpeakersLive) ShowSpeakers();
+                if (IsHeadlinesBoardLive) ShowHeadlinesBoard();
 
                 // Cue-before-launch fix: re-send anything already sitting in Preview so
                 // content cued before the projector opened is actually loaded on the canvas.
@@ -2551,6 +2684,8 @@ public class MainViewModel : ViewModelBase
 
         if (_stateManager.State.IsVoiceOverActive) _stateManager.SetVoiceOverActive(false);
         if (_stateManager.State.AreSpeakersLive) _stateManager.SetSpeakersLive(false);
+        IsHeadlinesBoardLive = false;
+        _isHeadlineSideOn = false;
         if (_isIntroPlaying)
         {
             _isIntroPlaying = false;

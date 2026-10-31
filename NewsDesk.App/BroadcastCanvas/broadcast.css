@@ -256,9 +256,17 @@ html.show-cursor body {
 
 #layer-scenes {
     position: absolute;
-    inset: 0;
+    /* Explicit geometry (not inset) so the headlines side layout can animate it */
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1080px;
     background-color: #000000;
     z-index: 10;
+    overflow: hidden;
+    transition: left 500ms cubic-bezier(0.3, 0, 0.2, 1), top 500ms cubic-bezier(0.3, 0, 0.2, 1),
+                width 500ms cubic-bezier(0.3, 0, 0.2, 1), height 500ms cubic-bezier(0.3, 0, 0.2, 1),
+                box-shadow 500ms ease;
 }
 
 .scene-slot {
@@ -1608,3 +1616,166 @@ body.speakers-full .scene-caption { opacity: 0; }
 }
 
 .vo-name:empty, .vo-title:empty { display: none; }
+
+/* ==========================================================================
+   HEADLINES AT THE SIDE: text panel on the left, the scene (video or
+   picture) shrinks into a frame on the right. Used for each headline in
+   the segment and for the all-headlines board.
+   ========================================================================== */
+
+.side-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 400ms ease;
+}
+
+body.side-layout .side-backdrop { opacity: 1; }
+body.side-layout #layer-scenes {
+    left: 820px;
+    top: 150px;
+    width: 1010px;
+    height: 568px;
+    box-shadow: 0 0 0 6px #FFFFFF, 0 -2px 0 8px var(--red), 0 24px 60px rgba(12, 20, 36, 0.45);
+}
+
+/* A full-brand slide would be unreadable in the small frame; the brand chip stays */
+body.side-layout .station-chip { opacity: 1; }
+
+.side-panel {
+    position: absolute;
+    left: var(--edge-x);
+    top: 150px;
+    width: 680px;
+    bottom: calc(var(--ticker-h) + var(--floor-h) + 50px);
+    display: flex;
+    flex-direction: column;
+    animation: side-in 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.side-head {
+    display: flex;
+    align-items: stretch;
+    height: 50px;
+    margin-bottom: 26px;
+}
+
+.side-tag {
+    display: flex;
+    align-items: center;
+    padding: 0 22px;
+    background: var(--red);
+    color: #FFFFFF;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 26px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.side-count {
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+    background: var(--navy);
+    color: #FFFFFF;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 24px;
+    font-variant-numeric: tabular-nums;
+}
+
+.side-count:empty { display: none; }
+
+.side-single {
+    border-left: 12px solid var(--red);
+    padding-left: 28px;
+}
+
+.side-title {
+    font-family: var(--font-head);
+    font-weight: 900;
+    font-size: 66px;
+    line-height: 1.04;
+    color: var(--navy);
+    text-transform: uppercase;
+    animation: side-rise 600ms 150ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.side-caption {
+    margin-top: 22px;
+    font-family: var(--font-ui);
+    font-weight: 500;
+    font-size: 32px;
+    line-height: 1.3;
+    color: var(--ink);
+    animation: side-rise 600ms 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.side-caption:empty { display: none; }
+
+/* Board: every headline listed, numbered */
+.side-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.side-list li {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    column-gap: 18px;
+    align-items: start;
+    animation: side-rise 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.side-num {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--red);
+    color: #FFFFFF;
+    font-family: var(--font-head);
+    font-size: 28px;
+}
+
+.side-item-title {
+    font-family: var(--font-cond);
+    font-stretch: 85%;
+    font-weight: 700;
+    font-size: 34px;
+    line-height: 1.1;
+    color: var(--navy);
+    text-transform: uppercase;
+}
+
+.side-item-caption {
+    margin-top: 4px;
+    font-family: var(--font-ui);
+    font-size: 22px;
+    line-height: 1.25;
+    color: #4A5263;
+}
+
+.side-item-caption:empty { display: none; }
+
+/* Longer lists tighten up so everything still fits */
+.side-list.dense { gap: 10px; }
+.side-list.dense li { grid-template-columns: 40px 1fr; column-gap: 14px; }
+.side-list.dense .side-num { width: 40px; height: 40px; font-size: 21px; }
+.side-list.dense .side-item-title { font-size: 26px; }
+.side-list.dense .side-item-caption { font-size: 17px; margin-top: 2px; }
+
+@keyframes side-in {
+    from { opacity: 0; transform: translateX(-60px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes side-rise {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: none; }
+}

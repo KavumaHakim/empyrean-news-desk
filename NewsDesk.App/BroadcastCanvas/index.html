@@ -11,6 +11,11 @@
     <div id="broadcast-container">
 
         <!-- SCENES LAYER (DUAL-BUFFERED FOR 500MS HARDWARE TRANSITIONS) -->
+        <!-- Studio backdrop behind the framed media while headlines sit at the side -->
+        <div id="side-backdrop" class="side-backdrop">
+            <div class="studio-bg"></div>
+        </div>
+
         <div id="layer-scenes">
             <!-- Scene A -->
             <div id="scene-a" class="scene-slot is-active">
@@ -71,6 +76,19 @@
             </div>
 
             <!-- Fixed LIVE indicator (top-right) -->
+            <!-- Headlines at the side (text left, media framed right): one headline, or the whole board -->
+            <div id="side-panel" class="side-panel hidden">
+                <div class="side-head">
+                    <span id="side-tag" class="side-tag">HEADLINES</span>
+                    <span id="side-count" class="side-count"></span>
+                </div>
+                <div id="side-single" class="side-single">
+                    <h1 id="side-title" class="side-title"></h1>
+                    <p id="side-caption" class="side-caption"></p>
+                </div>
+                <ol id="side-list" class="side-list hidden"></ol>
+            </div>
+
             <div id="live-indicator" class="live-badge">
                 <span class="live-dot"></span>
                 <span class="live-text">LIVE</span>

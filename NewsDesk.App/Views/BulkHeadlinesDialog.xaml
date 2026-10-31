@@ -1,0 +1,43 @@
+<Window x:Class="NewsDesk.App.Views.BulkHeadlinesDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Type all headlines"
+        Width="760" Height="560"
+        MinWidth="520" MinHeight="380"
+        WindowStartupLocation="CenterOwner"
+        Background="#0C1830"
+        Foreground="#F2F6FC"
+        ShowInTaskbar="False">
+    <Border Padding="20" BorderBrush="#1B2B47" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="ALL HEADLINES" FontSize="15" FontWeight="Bold" Foreground="#F2F6FC"/>
+            <TextBlock Grid.Row="1" Margin="0,8,0,12" TextWrapping="Wrap" Foreground="#C9D4E4" LineHeight="19">
+                One headline per line, then a <Run FontWeight="Bold" Foreground="#FF7A63">|</Run> and its caption:
+                <LineBreak/>
+                <Run FontFamily="Consolas" Foreground="#F2F6FC">CLASS OF 2026 SAYS FAREWELL | Graduates gather for the final assembly</Run>
+                <LineBreak/>
+                Two columns pasted from Excel or Word work too. Lines keep the video or picture already attached at
+                the same position; extra lines add headlines, and deleting a line removes that headline.
+            </TextBlock>
+            <TextBox x:Name="ListBox" Grid.Row="2" AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                     FontFamily="Consolas" FontSize="14" Padding="10,8"
+                     Background="#081020" Foreground="#F2F6FC" CaretBrush="#FF7A63" BorderBrush="#1B2B47"
+                     TextChanged="ListBox_TextChanged"/>
+            <Grid Grid.Row="3" Margin="0,14,0,0">
+                <TextBlock x:Name="CountText" VerticalAlignment="Center" Foreground="#8CA0BC"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="CANCEL" IsCancel="True" Padding="14,7" Margin="0,0,8,0" Click="Cancel_Click"/>
+                    <Button Content="SAVE ALL" Padding="14,7" Background="#E8112D" Foreground="White"
+                            BorderThickness="0" Click="Save_Click"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
