@@ -1,11 +1,15 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace NewsDesk.Core.Models;
 
 /// <summary>
-/// One entry in the headlines segment: a headline shown over its own video or
-/// picture. Played in order, each entry stays on air for DurationSeconds.
+/// A story in the rundown: its headline and summary (the lower-third text), a tag,
+/// the main video or picture, and extra media for the same story. Taking the story
+/// live puts the main media on air with its lower third. Stories ticked
+/// InHeadlines also make up the headlines segment, in rundown order, where each
+/// stays on air for DurationSeconds.
 /// </summary>
 public class HeadlineSequenceItem : INotifyPropertyChanged
 {
@@ -26,7 +30,26 @@ public class HeadlineSequenceItem : INotifyPropertyChanged
     public int Number => OrderIndex + 1;
 
     private string _title = string.Empty;
-    public string Title { get => _title; set => Set(ref _title, value); }
+    public string Title
+    {
+        get => _title;
+        set { if (Set(ref _title, value)) Raise(nameof(ListTitle)); }
+    }
+
+    /// <summary>What the rundown shows: the headline, or the media title while none is written.</summary>
+    public string ListTitle => !string.IsNullOrWhiteSpace(Title) ? Title
+        : MediaItem != null ? MediaItem.Title
+        : "(new story — write a headline)";
+
+    private bool _inHeadlines = true;
+    /// <summary>Whether this story is part of the headlines segment.</summary>
+    public bool InHeadlines { get => _inHeadlines; set => Set(ref _inHeadlines, value); }
+
+    /// <summary>Other videos/pictures for this story: replace the shot, voice-over, or a speaker window.</summary>
+    public ObservableCollection<MediaItem> ExtraMedia { get; } = [];
+
+    /// <summary>Extra media ids as stored; resolved against the library into ExtraMedia on load.</summary>
+    public List<int> ExtraMediaIds { get; set; } = [];
 
     private string _subtitle = string.Empty;
     public string Subtitle { get => _subtitle; set => Set(ref _subtitle, value); }
@@ -51,6 +74,7 @@ public class HeadlineSequenceItem : INotifyPropertyChanged
             if (!Set(ref _mediaItem, value)) return;
             Raise(nameof(MediaLabel));
             Raise(nameof(ThumbnailPath));
+            Raise(nameof(ListTitle));
         }
     }
 

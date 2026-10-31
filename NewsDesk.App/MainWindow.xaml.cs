@@ -287,7 +287,8 @@ public partial class MainWindow : Window
 
     private void RundownGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (_viewModel.SelectedRundownItem?.MediaItem is { } media) _viewModel.SelectForPreviewCommand.Execute(media);
+        // A story cues with its lower third ready for TAKE
+        if (_viewModel.CueStoryCommand.CanExecute(null)) _viewModel.CueStoryCommand.Execute(null);
     }
 
     private void DashboardMonitorTimer_Tick(object? sender, EventArgs e)

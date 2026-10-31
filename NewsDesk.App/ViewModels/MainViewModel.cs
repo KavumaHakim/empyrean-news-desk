@@ -65,6 +65,7 @@ public class MainViewModel : ViewModelBase
         private const int IntroAudioMediaId = 900_000_002;
         private const int VoiceOverMediaId = 900_000_011;
         private const int SpeakerMediaIdBase = 900_000_020; // + box number
+        private const int StoryVoiceOverMediaId = 900_000_012;
 
         // Camera formats (.mts, .cr3 …) are converted to playable copies before use
         private readonly MediaConverter _converter = new() { StillDecoder = WicStillDecoder.TryConvert };
@@ -79,7 +80,7 @@ public class MainViewModel : ViewModelBase
         private readonly SpeakerBoxConfig[] _speakers = [new(), new()];
 
     // Actual default rundown playlist id (seeded row may not be Id 1)
-    private int _rundownPlaylistId = 1;
+
 
     /// <summary>
     /// TAKE LIVE is only honoured when preview content exists, no transition is
@@ -100,7 +101,7 @@ public class MainViewModel : ViewModelBase
     // Collections
     public ObservableCollection<MediaItem> MediaLibrary { get; } = [];
     public ObservableCollection<MediaItem> FilteredMediaLibrary { get; } = [];
-    public ObservableCollection<PlaylistItem> RundownItems { get; } = [];
+
     public ObservableCollection<HeadlineDraft> HeadlineDrafts { get; } = [];
     public ObservableCollection<HeadlineSequenceItem> HeadlineSequence { get; } = [];
     public ObservableCollection<TickerItem> TickerDraftItems { get; } = [];
@@ -156,12 +157,6 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _selectedMedia, value);
     }
 
-    private PlaylistItem? _selectedRundownItem;
-    public PlaylistItem? SelectedRundownItem
-    {
-        get => _selectedRundownItem;
-        set => SetProperty(ref _selectedRundownItem, value);
-    }
 
     private HeadlineSequenceItem? _selectedHeadlineItem;
     public HeadlineSequenceItem? SelectedHeadlineItem
@@ -528,9 +523,39 @@ public class MainViewModel : ViewModelBase
     public RelayCommand DeleteMediaCommand { get; }
     public RelayCommand SelectForPreviewCommand { get; }
     public RelayCommand AddToRundownCommand { get; }
-    public RelayCommand RemoveFromRundownCommand { get; }
-    public RelayCommand MoveRundownUpCommand { get; }
-    public RelayCommand MoveRundownDownCommand { get; }
+    public RelayCommand CueStoryCommand { get; }
+    public RelayCommand ReplaceWithStoryMediaCommand { get; }
+    public RelayCommand VoiceOverStoryMediaCommand { get; }
+    public RelayCommand Window1StoryMediaCommand { get; }
+    public RelayCommand Window2StoryMediaCommand { get; }
+    public RelayCommand AddStoryExtraMediaCommand { get; }
+    public RelayCommand RemoveStoryExtraMediaCommand { get; }
+
+    // The story whose media is on air: its lower third is up, its extra media are the quick options
+    private HeadlineSequenceItem? _onAirStory;
+    public HeadlineSequenceItem? OnAirStory
+    {
+        get => _onAirStory;
+        private set => SetProperty(ref _onAirStory, value);
+    }
+
+    // The story cued into Preview; becomes OnAirStory when it is taken
+    private HeadlineSequenceItem? _cuedStory;
+
+    // The lower third a story put up (so a story switch never clears the operator's own graphic)
+    private HeadlineDraft? _storyLowerThird;
+
+    private bool _storyLowerThirdAuto = true;
+    /// <summary>Taking a story puts its headline and summary up as the lower third.</summary>
+    public bool StoryLowerThirdAuto
+    {
+        get => _storyLowerThirdAuto;
+        set
+        {
+            if (!SetProperty(ref _storyLowerThirdAuto, value)) return;
+            _db.SetSetting("Stories_AutoLowerThird", value.ToString());
+        }
+    }
     public RelayCommand TakeLiveRundownCommand { get; }
 
     public RelayCommand TakeLiveCommand { get; }
@@ -621,11 +646,20 @@ public class MainViewModel : ViewModelBase
         RenameMediaCommand = new RelayCommand(RenameMedia, param => param is MediaItem media && media.IsImage && !string.IsNullOrWhiteSpace(media.Title));
         DeleteMediaCommand = new RelayCommand(DeleteMedia, () => SelectedMedia != null);
         SelectForPreviewCommand = new RelayCommand(SelectForPreview);
-        AddToRundownCommand = new RelayCommand(AddToRundown, () => SelectedMedia != null);
-        RemoveFromRundownCommand = new RelayCommand(RemoveFromRundown, () => SelectedRundownItem != null);
-        MoveRundownUpCommand = new RelayCommand(MoveRundownUp, () => SelectedRundownItem != null);
-        MoveRundownDownCommand = new RelayCommand(MoveRundownDown, () => SelectedRundownItem != null);
-        TakeLiveRundownCommand = new RelayCommand(TakeLiveRundown, () => SelectedRundownItem != null);
+        AddToRundownCommand = new RelayCommand(AddHeadlineItem, () => SelectedMedia != null);
+        TakeLiveRundownCommand = new RelayCommand(TakeLiveRundown, () => SelectedHeadlineItem != null && !IsHeadlinesPlaying);
+        CueStoryCommand = new RelayCommand(() => { if (SelectedHeadlineItem != null) { CueStory(SelectedHeadlineItem); _manualCueSinceTake = true; } },
+            () => SelectedHeadlineItem != null && !IsHeadlinesPlaying);
+        ReplaceWithStoryMediaCommand = new RelayCommand(param => { if (param is MediaItem m) _ = ReplaceWithStoryMediaAsync(m); });
+        VoiceOverStoryMediaCommand = new RelayCommand(param => { if (param is MediaItem m) StartVoiceOverWithMedia(m); });
+        Window1StoryMediaCommand = new RelayCommand(param => { if (param is MediaItem m) ShowStoryMediaInWindow(1, m); });
+        Window2StoryMediaCommand = new RelayCommand(param => { if (param is MediaItem m) ShowStoryMediaInWindow(2, m); });
+        AddStoryExtraMediaCommand = new RelayCommand(AddStoryExtraMedia, () => SelectedHeadlineItem != null && SelectedMedia != null);
+        RemoveStoryExtraMediaCommand = new RelayCommand(param =>
+        {
+            if (param is not MediaItem m || SelectedHeadlineItem == null) return;
+            SelectedHeadlineItem.ExtraMedia.Remove(m);
+        });
 
         TakeLiveCommand = new RelayCommand(TakeLive, () => CanTakeLive());
         PlayCommand = new RelayCommand(PlayLive);
@@ -735,14 +769,6 @@ public class MainViewModel : ViewModelBase
         }
         ApplyMediaFilter();
 
-        // Load Rundown
-        var rundown = _db.GetDefaultPlaylist();
-        _rundownPlaylistId = rundown.Id;
-        RundownItems.Clear();
-        foreach (var r in rundown.Items)
-        {
-            RundownItems.Add(r);
-        }
 
         // Load Headlines
         var drafts = _db.GetAllHeadlineDrafts();
@@ -759,10 +785,16 @@ public class MainViewModel : ViewModelBase
         {
             var mediaId = h.MediaItemId;
             h.MediaItem = mediaId == null ? null : MediaLibrary.FirstOrDefault(m => m.Id == mediaId);
-            h.PropertyChanged += OnHeadlineItemChanged;
+            foreach (var extraId in h.ExtraMediaIds)
+            {
+                if (MediaLibrary.FirstOrDefault(m => m.Id == extraId) is { } extra) h.ExtraMedia.Add(extra);
+            }
+            WatchStory(h);
             HeadlineSequence.Add(h);
         }
+        ImportOldRundownIntoStories();
         RenumberHeadlines();
+        _storyLowerThirdAuto = !bool.TryParse(_db.GetSetting("Stories_AutoLowerThird", "True"), out var autoL3) || autoL3;
 
         // Load Ticker
         var ticker = _db.GetAllTickerItems();
@@ -962,7 +994,6 @@ public class MainViewModel : ViewModelBase
                 if (playable == null) return false;
 
                 var copies = MediaLibrary.Where(m => m.Id == item.Id)
-                    .Concat(RundownItems.Where(r => r.MediaItemId == item.Id).Select(r => r.MediaItem))
                     .Append(item)
                     .Where(m => m != null)
                     .Distinct();
@@ -1049,9 +1080,6 @@ public class MainViewModel : ViewModelBase
         media.Title = dialog.NewName;
         _db.UpdateMedia(media);
 
-        // Keep any already-loaded rundown copies in sync with the catalog title.
-        foreach (var item in RundownItems.Where(item => item.MediaItemId == media.Id))
-            item.MediaItem.Title = media.Title;
 
         ApplyMediaFilter();
         OnPropertyChanged(nameof(PreviewMedia));
@@ -1098,6 +1126,7 @@ public class MainViewModel : ViewModelBase
         var media = param as MediaItem ?? SelectedMedia;
         if (media == null) return;
 
+        _cuedStory = null; // a plain source, not a story: the lower third stays as it is
         PreparePreview(media);
         _manualCueSinceTake = true;
     }
@@ -1160,6 +1189,9 @@ public class MainViewModel : ViewModelBase
         }
 
         if (!_stateManager.ExecuteTakeLive()) return;
+
+        // A story went on air: its lower third and media options follow it
+        ApplyTakenStory();
 
         // Everything cued so far has now been consumed by this take
         _manualCueSinceTake = false;
@@ -1238,6 +1270,10 @@ public class MainViewModel : ViewModelBase
             case Key.F7:
                 QuickBreakingLiveCommand.Execute(null);
                 return true;
+            case Key.F8:
+                // Emergency filler: the theme intro straight to air
+                PlayIntroCommand.Execute(null);
+                return true;
             case Key.Space:
                 if (_stateManager.State.IsPlaying)
                     PauseCommand.Execute(null);
@@ -1286,26 +1322,132 @@ public class MainViewModel : ViewModelBase
 
     #endregion
 
-    #region Rundown Playlist Actions
+    #region Rundown Stories
 
-    private void AddToRundown()
+    // The rundown is the list of stories (HeadlineSequence). Each story is written once:
+    // its headline + summary are the lower third when it airs, and the headlines
+    // segment when it is ticked IN HEADLINES.
+
+    private int HeadlineCount => HeadlineSequence.Count(h => h.InHeadlines);
+
+    private int HeadlinePosition(HeadlineSequenceItem item) =>
+        HeadlineSequence.Where(h => h.InHeadlines).ToList().IndexOf(item) + 1;
+
+    /// <summary>Saves a story whenever its text, flags or extra media change.</summary>
+    private void WatchStory(HeadlineSequenceItem story)
     {
-        if (SelectedMedia == null) return;
-        int nextOrder = RundownItems.Count;
-        _db.AddPlaylistItem(_rundownPlaylistId, SelectedMedia.Id, nextOrder);
-        RundownItems.Add(new PlaylistItem
+        story.PropertyChanged += OnHeadlineItemChanged;
+        story.ExtraMedia.CollectionChanged += (s, e) =>
         {
-            PlaylistId = _rundownPlaylistId,
-            MediaItemId = SelectedMedia.Id,
-            OrderIndex = nextOrder,
-            MediaItem = SelectedMedia
-        });
-        StatusNotification = $"Added '{SelectedMedia.Title}' to news rundown.";
+            if (story.Id > 0) _db.SaveHeadlineSequenceItem(story);
+        };
     }
 
     /// <summary>
-    /// When the on-air video ends, advances to the next story in the rundown
-    /// and takes it live with its own assigned transition.
+    /// One-time move of the old media-only rundown into stories, so nothing the
+    /// operator built before stories existed is lost. Rundown media already used
+    /// by a story is not duplicated.
+    /// </summary>
+    private void ImportOldRundownIntoStories()
+    {
+        if (_db.GetSetting("Stories_RundownImported") == "1") return;
+
+        // Keep a full copy of the operator's work from before the merge, just in case
+        try { _db.CreateBackup("before-stories"); }
+        catch (Exception ex) { StatusNotification = $"Could not save a backup before updating the rundown: {ex.Message}"; return; }
+
+
+        int imported = 0;
+        foreach (var old in _db.GetDefaultPlaylist().Items)
+        {
+            var media = MediaLibrary.FirstOrDefault(m => m.Id == old.MediaItemId);
+            if (media == null || HeadlineSequence.Any(h => h.MediaItem?.Id == media.Id)) continue;
+
+            var story = new HeadlineSequenceItem
+            {
+                OrderIndex = HeadlineSequence.Count,
+                MediaItem = media,
+                InHeadlines = false // no headline written yet
+            };
+            _db.SaveHeadlineSequenceItem(story);
+            WatchStory(story);
+            HeadlineSequence.Add(story);
+            imported++;
+        }
+
+        _db.SetSetting("Stories_RundownImported", "1");
+        if (imported > 0)
+            StatusNotification = $"Your rundown is now a story list: {imported} item(s) added. Write each story's headline and summary once — it becomes the lower third and the headline.";
+    }
+
+    /// <summary>Cues a story: its main video/picture, or a full-screen headline slide when it has none.</summary>
+    private void CueStory(HeadlineSequenceItem story)
+    {
+        if (story.MediaItem != null) PreparePreview(story.MediaItem);
+        else PreviewHeadlineWith(BuildHeadlineDraft(story, fullSlide: true));
+        _cuedStory = story;
+    }
+
+    /// <summary>Called by TAKE: the cued story becomes the on-air story and brings its lower third.</summary>
+    private void ApplyTakenStory()
+    {
+        var story = _cuedStory;
+        _cuedStory = null;
+        if (story == null) return;
+
+        if (OnAirStory != null && !IsHeadlinesPlaying) OnAirStory.IsOnAir = false;
+        OnAirStory = story;
+        story.IsOnAir = true;
+        if (!IsHeadlinesPlaying) SelectedHeadlineItem = story;
+
+        // A slide already shows the headline full-screen; media gets the lower third
+        if (StoryLowerThirdAuto && story.MediaItem != null && !string.IsNullOrWhiteSpace(story.Title))
+            PublishStoryLowerThird(story);
+        else
+            ClearStoryLowerThird();
+    }
+
+    private void PublishStoryLowerThird(HeadlineSequenceItem story)
+    {
+        var lowerThird = new HeadlineDraft
+        {
+            Title = story.Title,
+            Subtitle = story.Subtitle,
+            Category = string.IsNullOrWhiteSpace(story.Category) ? "NEWS" : story.Category,
+            TemplateType = GraphicsTemplateType.MainHeadline,
+            BackgroundStyle = "navy"
+        };
+        _storyLowerThird = lowerThird;
+        _stateManager.PublishLiveGraphic(lowerThird);
+        SendCanvasCommand("publish_headline", lowerThird);
+    }
+
+    private void ClearStoryLowerThird()
+    {
+        if (_storyLowerThird != null && ReferenceEquals(_stateManager.State.LiveGraphic, _storyLowerThird))
+        {
+            _stateManager.ClearLiveGraphic();
+            SendCanvasCommand("clear_headline");
+        }
+        _storyLowerThird = null;
+    }
+
+    /// <summary>The story after the one on air, or null at the end of the rundown.</summary>
+    private HeadlineSequenceItem? FindNextStory()
+    {
+        int index = OnAirStory == null ? -1 : HeadlineSequence.IndexOf(OnAirStory);
+        if (index < 0)
+        {
+            // On-air media that came from a story taken some other way
+            var onAir = _stateManager.State.OnAirMedia;
+            index = onAir == null ? -1 : HeadlineSequence.ToList().FindIndex(h => h.MediaItem?.Id == onAir.Id);
+        }
+        return index >= 0 && index + 1 < HeadlineSequence.Count ? HeadlineSequence[index + 1] : null;
+    }
+
+    /// <summary>
+    /// When the on-air video ends, advances to the next story and takes it live
+    /// (with its lower third) using its own transition.
     /// </summary>
     private async Task AutoAdvanceRundownAsync()
     {
@@ -1319,15 +1461,15 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        var next = FindNextRundownMedia(current);
+        var next = FindNextStory();
         if (next == null)
         {
-            StatusNotification = "On-air media ended. No further rundown item prepared — standby is available.";
+            StatusNotification = "On-air media ended. No further story in the rundown — standby is available.";
             return;
         }
 
-        StatusNotification = $"MEDIA ENDED: auto-advancing rundown to '{next.Title}'.";
-        PreparePreview(next);
+        StatusNotification = $"MEDIA ENDED: moving on to the next story '{next.ListTitle}'.";
+        CueStory(next);
         await WaitScenePreparedSafeAsync(5000);
 
         // The operator cued something else while we waited: don't take their cue live for them
@@ -1339,73 +1481,94 @@ public class MainViewModel : ViewModelBase
         TakeLive();
     }
 
-    /// <summary>
-    /// Returns the rundown story after the given on-air media, or null at the end.
-    /// </summary>
-    private MediaItem? FindNextRundownMedia(MediaItem current)
-    {
-        int currentIndex = -1;
-        for (int i = 0; i < RundownItems.Count; i++)
-        {
-            if (RundownItems[i].MediaItem?.Id == current.Id)
-            {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        return (currentIndex >= 0 && currentIndex + 1 < RundownItems.Count)
-            ? RundownItems[currentIndex + 1].MediaItem
-            : null;
-    }
-
-    private void RemoveFromRundown()
-    {
-        if (SelectedRundownItem == null) return;
-        _db.RemovePlaylistItem(SelectedRundownItem.Id);
-        RundownItems.Remove(SelectedRundownItem);
-        ReorderRundown();
-    }
-
-    private void MoveRundownUp()
-    {
-        if (SelectedRundownItem == null) return;
-        int idx = RundownItems.IndexOf(SelectedRundownItem);
-        if (idx > 0)
-        {
-            RundownItems.Move(idx, idx - 1);
-            ReorderRundown();
-        }
-    }
-
-    private void MoveRundownDown()
-    {
-        if (SelectedRundownItem == null) return;
-        int idx = RundownItems.IndexOf(SelectedRundownItem);
-        if (idx < RundownItems.Count - 1)
-        {
-            RundownItems.Move(idx, idx + 1);
-            ReorderRundown();
-        }
-    }
-
-    private void ReorderRundown()
-    {
-        for (int i = 0; i < RundownItems.Count; i++)
-        {
-            RundownItems[i].OrderIndex = i;
-        }
-        _db.UpdatePlaylistOrder(RundownItems.ToList());
-    }
-
+    /// <summary>TAKE LIVE NOW for the selected story.</summary>
     private async void TakeLiveRundown()
     {
-        if (SelectedRundownItem?.MediaItem == null) return;
+        var story = SelectedHeadlineItem;
+        if (story == null) return;
 
-        PreparePreview(SelectedRundownItem.MediaItem);
+        CueStory(story);
         _manualCueSinceTake = true;
         await WaitScenePreparedSafeAsync(5000);
         TakeLive();
+    }
+
+    /// <summary>
+    /// Swaps the on-air shot for another video/picture of the same story. The
+    /// story stays on air, so its lower third stays up.
+    /// </summary>
+    private async Task ReplaceWithStoryMediaAsync(MediaItem media)
+    {
+        _cuedStory = null;
+        PreparePreview(media);
+        _manualCueSinceTake = true;
+        await WaitScenePreparedSafeAsync(5000);
+        TakeLive();
+        StatusNotification = $"Shot replaced with '{media.Title}' — the story's lower third stays up.";
+    }
+
+    /// <summary>Plays a story video's sound (or an audio file) under whatever is on air.</summary>
+    private void StartVoiceOverWithMedia(MediaItem media)
+    {
+        if (media.IsImage)
+        {
+            StatusNotification = $"'{media.Title}' is a picture — it has no sound for a voice-over. Use WIN 1 / WIN 2 or REPLACE.";
+            return;
+        }
+        if (_broadcastWindow == null)
+        {
+            StatusNotification = "Open the broadcast output (projector) before starting a voice-over.";
+            return;
+        }
+        if (_stateManager.State.IsStandbyActive)
+        {
+            StatusNotification = "Voice-over held — the standby slate is on air. Take a story live first.";
+            return;
+        }
+
+        _server.UnregisterMedia(StoryVoiceOverMediaId);
+        _server.RegisterApprovedMedia(StoryVoiceOverMediaId, media.FilePath);
+        SendCanvasCommand("set_volume", ProgramVolume);
+        SendCanvasCommand("start_voice_over", new VoiceOverCommandData
+        {
+            AudioUrl = $"{_server.BaseUrl}media/{StoryVoiceOverMediaId}?v={File.GetLastWriteTimeUtc(media.FilePath).Ticks}",
+            Name = _voConfig.Name,
+            Designation = _voConfig.Designation,
+            Volume = _voConfig.Volume,
+            DuckLevel = _voConfig.DuckLevel,
+            ShowTag = _voConfig.ShowTag && !string.IsNullOrWhiteSpace(_voConfig.Name),
+            Loop = false
+        });
+        _stateManager.SetVoiceOverActive(true);
+        StatusNotification = $"VOICE-OVER: sound of '{media.Title}' under the program (ducked to {_voConfig.DuckLevel:P0}). STOP VO ends it.";
+    }
+
+    /// <summary>Shows a story's video/picture in speaker window 1 or 2 over the program.</summary>
+    private void ShowStoryMediaInWindow(int box, MediaItem media)
+    {
+        var config = _speakers[box - 1];
+        config.SourceKind = "file";
+        config.SourcePath = media.FilePath;
+        config.IsEnabled = true;
+        _db.SaveSpeakerBoxConfig(box, config);
+        RegisterOverlayMedia();
+        OnPropertyChanged(box == 1 ? nameof(Speaker1SourceDisplay) : nameof(Speaker2SourceDisplay));
+        ShowSpeakers();
+    }
+
+    private void AddStoryExtraMedia()
+    {
+        var story = SelectedHeadlineItem;
+        var media = SelectedMedia;
+        if (story == null || media == null) return;
+
+        if (ReferenceEquals(story.MediaItem, media) || story.ExtraMedia.Contains(media))
+        {
+            StatusNotification = $"'{media.Title}' is already part of this story.";
+            return;
+        }
+        story.ExtraMedia.Add(media);
+        StatusNotification = $"Added '{media.Title}' to the story's extra media (replace, voice-over or window while it is on air).";
     }
 
     /// <summary>
@@ -1456,6 +1619,7 @@ public class MainViewModel : ViewModelBase
 
     private void PreviewHeadline()
     {
+        _cuedStory = null;
         PreviewHeadlineWith(EditingHeadline);
         _manualCueSinceTake = true;
     }
@@ -1533,7 +1697,7 @@ public class MainViewModel : ViewModelBase
             MediaItem = SelectedMedia
         };
         _db.SaveHeadlineSequenceItem(item);
-        item.PropertyChanged += OnHeadlineItemChanged;
+        WatchStory(item);
         HeadlineSequence.Add(item);
         SelectedHeadlineItem = item;
 
@@ -1586,9 +1750,18 @@ public class MainViewModel : ViewModelBase
             or nameof(HeadlineSequenceItem.Subtitle)
             or nameof(HeadlineSequenceItem.Category)
             or nameof(HeadlineSequenceItem.DurationSeconds)
-            or nameof(HeadlineSequenceItem.MediaItem))
+            or nameof(HeadlineSequenceItem.MediaItem)
+            or nameof(HeadlineSequenceItem.InHeadlines))
         {
             _db.SaveHeadlineSequenceItem(item);
+        }
+
+        // Write once, update on air: editing the story that is up refreshes its lower third
+        if (ReferenceEquals(item, OnAirStory) && _storyLowerThird != null
+            && e.PropertyName is nameof(HeadlineSequenceItem.Title) or nameof(HeadlineSequenceItem.Subtitle) or nameof(HeadlineSequenceItem.Category)
+            && ReferenceEquals(_stateManager.State.LiveGraphic, _storyLowerThird))
+        {
+            PublishStoryLowerThird(item);
         }
     }
 
@@ -1619,6 +1792,7 @@ public class MainViewModel : ViewModelBase
 
     private void CueHeadline(HeadlineSequenceItem item)
     {
+        _cuedStory = null; // the headlines segment puts up its own headline text
         if (item.MediaItem != null) PreparePreview(item.MediaItem);
         else PreviewHeadlineWith(BuildHeadlineDraft(item, fullSlide: true));
     }
@@ -1634,7 +1808,7 @@ public class MainViewModel : ViewModelBase
 
     private async Task PlayHeadlinesAsync()
     {
-        if (HeadlineSequence.Count == 0 || IsHeadlinesPlaying) return;
+        if (!HeadlineSequence.Any(h => h.InHeadlines) || IsHeadlinesPlaying) return;
 
         if (IsHeadlinesBoardLive) HideHeadlinesBoard(); // the segment uses the same side panel
         IsHeadlinesPlaying = true;
@@ -1662,6 +1836,11 @@ public class MainViewModel : ViewModelBase
         while (index >= 0 && index < HeadlineSequence.Count)
         {
             var item = HeadlineSequence[index];
+            if (!item.InHeadlines)
+            {
+                index += direction; // a rundown story that isn't part of the headlines
+                continue;
+            }
             bool landed = await TryTakeHeadlineAsync(item, index, run);
             if (run != _headlineRun) return; // stopped or stepped while we waited
 
@@ -1685,7 +1864,7 @@ public class MainViewModel : ViewModelBase
 
     private async Task<bool> TryTakeHeadlineAsync(HeadlineSequenceItem item, int index, int run)
     {
-        HeadlinesStatusText = $"Cueing {index + 1}/{HeadlineSequence.Count}: {item.Title}";
+        HeadlinesStatusText = $"Cueing {HeadlinePosition(item)}/{HeadlineCount}: {item.Title}";
         CueHeadline(item);
 
         bool prepared = await WaitScenePreparedSafeAsync(6000);
@@ -1719,7 +1898,7 @@ public class MainViewModel : ViewModelBase
         if (item.MediaItem != null) PublishHeadlineBanner(item);
         else ClearHeadlineBanner();
 
-        HeadlinesStatusText = $"ON AIR {index + 1}/{HeadlineSequence.Count}: {item.Title}";
+        HeadlinesStatusText = $"ON AIR {HeadlinePosition(item)}/{HeadlineCount}: {item.Title}";
         return true;
     }
 
@@ -1728,8 +1907,8 @@ public class MainViewModel : ViewModelBase
         _isHeadlineSideOn = true;
         SendCanvasCommand("show_headline_side", new
         {
-            number = item.Number,
-            total = HeadlineSequence.Count,
+            number = HeadlinePosition(item),
+            total = HeadlineCount,
             tag = string.IsNullOrWhiteSpace(item.Category) ? "HEADLINES" : item.Category,
             title = item.Title,
             caption = item.Subtitle
@@ -1816,7 +1995,7 @@ public class MainViewModel : ViewModelBase
             {
                 var item = new HeadlineSequenceItem { Title = title, Subtitle = caption, OrderIndex = i };
                 _db.SaveHeadlineSequenceItem(item);
-                item.PropertyChanged += OnHeadlineItemChanged;
+                WatchStory(item);
                 HeadlineSequence.Add(item);
                 added++;
             }
@@ -1843,9 +2022,10 @@ public class MainViewModel : ViewModelBase
 
     private void ShowHeadlinesBoard()
     {
-        if (HeadlineSequence.Count == 0)
+        if (HeadlineCount == 0)
         {
-            StatusNotification = "No headlines yet — use TYPE ALL… to enter them.";
+            StatusNotification = "No headlines yet — use TYPE ALL… to enter them, or tick IN HEADLINES on a story.";
+
             return;
         }
         if (_broadcastWindow == null)
@@ -1857,11 +2037,11 @@ public class MainViewModel : ViewModelBase
         SendCanvasCommand("show_headlines_board", new
         {
             title = string.IsNullOrWhiteSpace(HeadlinesBoardTitle) ? "TODAY'S HEADLINES" : HeadlinesBoardTitle.Trim(),
-            items = HeadlineSequence.Select(h => new { title = h.Title, caption = h.Subtitle }).ToList()
+            items = HeadlineSequence.Where(h => h.InHeadlines).Select(h => new { title = h.Title, caption = h.Subtitle }).ToList()
         });
         IsHeadlinesBoardLive = true;
         CommandManager.InvalidateRequerySuggested();
-        StatusNotification = $"ALL HEADLINES ON AIR: {HeadlineSequence.Count} headline(s) on screen together.";
+        StatusNotification = $"ALL HEADLINES ON AIR: {HeadlineCount} headline(s) on screen together.";
     }
 
     private void HideHeadlinesBoard()
@@ -2093,8 +2273,8 @@ public class MainViewModel : ViewModelBase
                 PreviewHeadlineWith(EditingHeadline);
                 _manualCueSinceTake = true;
                 break;
-            case "first_story" when RundownItems.FirstOrDefault()?.MediaItem is { } firstStory:
-                PreparePreview(firstStory);
+            case "first_story" when HeadlineSequence.FirstOrDefault() is { } firstStory:
+                CueStory(firstStory);
                 _manualCueSinceTake = true;
                 break;
         }
@@ -2777,17 +2957,16 @@ public class MainViewModel : ViewModelBase
     /// </summary>
     private void AutoCueNextRundownStory()
     {
-        var current = _stateManager.State.OnAirMedia;
-        if (current == null || IsHeadlinesPlaying) return;
+        if (OnAirStory == null || IsHeadlinesPlaying) return;
 
         // Never replace a cue the operator made during or after the take
         if (_manualCueSinceTake) return;
 
-        var next = FindNextRundownMedia(current);
-        if (next != null && next.Id != current.Id)
+        var next = FindNextStory();
+        if (next != null)
         {
-            PreparePreview(next);
-            StatusNotification = $"Transition complete. Automatically cued next rundown story '{next.Title}' — review and TAKE LIVE when ready.";
+            CueStory(next);
+            StatusNotification = $"Transition complete. Next story '{next.ListTitle}' is cued — review and TAKE LIVE when ready.";
         }
     }
 

@@ -948,7 +948,7 @@
                             </Grid>
                         </TabItem>
 
-                        <!-- RUNDOWN: ordered story list -->
+                        <!-- RUNDOWN: the story list (same stories as the STORIES editor) -->
                         <TabItem Header="RUNDOWN">
                             <Grid Margin="8,6,8,8">
                                 <Grid.RowDefinitions>
@@ -956,24 +956,33 @@
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Running order. A finished video auto-advances to the next story." Style="{StaticResource MicroLabel}" FontSize="10" Margin="0,0,0,6"/>
-                                <DataGrid x:Name="RundownGrid" Grid.Row="1" ItemsSource="{Binding RundownItems}"
-                                          SelectedItem="{Binding SelectedRundownItem}"
+                                <TextBlock Grid.Row="0" Text="Stories in running order. TAKE puts the media up with its lower third; edit in STORIES." Style="{StaticResource MicroLabel}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <DataGrid x:Name="RundownGrid" Grid.Row="1" ItemsSource="{Binding HeadlineSequence}"
+                                          SelectedItem="{Binding SelectedHeadlineItem}"
                                           IsReadOnly="True" RowHeight="24"
                                           MouseDoubleClick="RundownGrid_MouseDoubleClick">
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsOnAir}" Value="True">
+                                                    <Setter Property="Background" Value="#3A0A14"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.RowStyle>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="#" Binding="{Binding OrderIndex}" Width="32"/>
-                                        <DataGridTextColumn Header="STORY" Binding="{Binding MediaItem.Title}" Width="*" Foreground="{StaticResource TextHi}"/>
-                                        <DataGridTextColumn Header="TYPE" Binding="{Binding MediaItem.KindLabel}" Width="62" Foreground="{StaticResource TextMuted}"/>
-                                        <DataGridTextColumn Header="EFFECT" Binding="{Binding MediaItem.AssignedTransition}" Width="74"/>
+                                        <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="28"/>
+                                        <DataGridTextColumn Header="STORY" Binding="{Binding ListTitle}" Width="*" Foreground="{StaticResource TextHi}"/>
+                                        <DataGridTextColumn Header="MEDIA" Binding="{Binding MediaItem.KindLabel, FallbackValue=SLIDE, TargetNullValue=SLIDE}" Width="58" Foreground="{StaticResource TextMuted}"/>
+                                        <DataGridTextColumn Header="+" Binding="{Binding ExtraMedia.Count}" Width="26" Foreground="{StaticResource AccentCoral}"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
                                 <WrapPanel Grid.Row="2" Margin="0,6,0,0">
-                                    <Button Content="▲" Command="{Binding MoveRundownUpCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Move up"/>
-                                    <Button Content="▼" Command="{Binding MoveRundownDownCommand}" Style="{StaticResource SmallButton}" Margin="0,0,6,0" ToolTip="Move down"/>
-                                    <Button Content="CUE" Command="{Binding SelectForPreviewCommand}" CommandParameter="{Binding SelectedRundownItem.MediaItem}" Style="{StaticResource SmallAzure}" Margin="0,0,4,0"/>
+                                    <Button Content="▲" Command="{Binding MoveHeadlineUpCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Move up"/>
+                                    <Button Content="▼" Command="{Binding MoveHeadlineDownCommand}" Style="{StaticResource SmallButton}" Margin="0,0,6,0" ToolTip="Move down"/>
+                                    <Button Content="CUE" Command="{Binding CueStoryCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,4,0" ToolTip="Cue the story's media in Preview (its lower third follows on TAKE)"/>
                                     <Button Content="TAKE LIVE NOW" Command="{Binding TakeLiveRundownCommand}" Style="{StaticResource SmallPrimary}" Margin="0,0,4,0"/>
-                                    <Button Content="REMOVE" Command="{Binding RemoveFromRundownCommand}" Style="{StaticResource SmallButton}"/>
+                                    <Button Content="EDIT" Command="{Binding OpenEditorCommand}" CommandParameter="1" Style="{StaticResource SmallButton}" ToolTip="Open the STORIES editor"/>
                                 </WrapPanel>
                             </Grid>
                         </TabItem>
@@ -1185,24 +1194,24 @@
                         </Grid>
                     </TabItem>
 
-                    <!-- 1. HEADLINES SEGMENT: headlines in sequence, each over its own video or picture -->
-                    <TabItem Header="HEADLINES">
+                    <!-- 1. STORIES: the rundown. Each story is written once — headline + summary are
+                         its lower third on air and its entry in the headlines segment. -->
+                    <TabItem Header="STORIES">
                         <Grid Margin="10,8,10,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="250"/>
+                                <ColumnDefinition Width="290"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Running order -->
+                            <!-- Running order + segment playback -->
                             <Grid Grid.Column="0">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="TYPE ALL… enters every headline and caption at once (or double-click a cell to edit). + ADD puts the source selected in SOURCES behind a headline." Style="{StaticResource MicroLabel}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                <DataGrid Grid.Row="1" ItemsSource="{Binding HeadlineSequence}"
+                                <DataGrid Grid.Row="0" ItemsSource="{Binding HeadlineSequence}"
                                           SelectedItem="{Binding SelectedHeadlineItem}"
                                           IsReadOnly="False" CanUserAddRows="False" CanUserDeleteRows="False"
                                           SelectionMode="Single" RowHeight="38">
@@ -1217,11 +1226,12 @@
                                         </Style>
                                     </DataGrid.RowStyle>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="#" Binding="{Binding Number, Mode=OneWay}" Width="28" IsReadOnly="True"/>
-                                        <DataGridTemplateColumn Header="MEDIA" Width="62" IsReadOnly="True">
+                                        <DataGridTextColumn Header="#" Binding="{Binding Number, Mode=OneWay}" Width="26" IsReadOnly="True"/>
+                                        <DataGridCheckBoxColumn Header="HL" Binding="{Binding InHeadlines, UpdateSourceTrigger=PropertyChanged}" Width="30"/>
+                                        <DataGridTemplateColumn Header="MEDIA" Width="58" IsReadOnly="True">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <Border Width="54" Height="30" Background="#0A1428" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" ToolTip="{Binding MediaLabel}">
+                                                    <Border Width="50" Height="30" Background="#0A1428" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" ToolTip="{Binding MediaLabel}">
                                                         <Grid>
                                                             <TextBlock Text="{Binding MediaItem.KindLabel, FallbackValue=SLIDE, TargetNullValue=SLIDE}" FontSize="8.5" FontWeight="Bold" Foreground="{StaticResource TextDim}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                             <Image Source="{Binding ThumbnailPath, Converter={StaticResource Thumb}}" Stretch="UniformToFill"/>
@@ -1230,100 +1240,128 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTemplateColumn Header="HEADLINE" Width="*">
+                                        <DataGridTemplateColumn Header="HEADLINE / SUMMARY" Width="*" IsReadOnly="True">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Title}" Foreground="{StaticResource TextHi}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{Binding MediaLabel}" Foreground="{StaticResource TextMuted}" FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding ListTitle}" Foreground="{StaticResource TextHi}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Subtitle}" Foreground="{StaticResource TextMuted}" FontSize="10" TextTrimming="CharacterEllipsis"/>
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
-                                            <DataGridTemplateColumn.CellEditingTemplate>
-                                                <DataTemplate>
-                                                    <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" Padding="4,2" VerticalContentAlignment="Center"/>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellEditingTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTextColumn Header="CAPTION" Binding="{Binding Subtitle, UpdateSourceTrigger=PropertyChanged}" Width="*" Foreground="{StaticResource TextMid}"/>
-                                        <DataGridTextColumn Header="SECS" Binding="{Binding DurationSeconds}" Width="44"/>
+                                        <DataGridTextColumn Header="+" Binding="{Binding ExtraMedia.Count, Mode=OneWay}" Width="24" IsReadOnly="True" Foreground="{StaticResource AccentCoral}"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
-                                <WrapPanel Grid.Row="2" Margin="0,6,0,0">
-                                    <Button Content="📝 TYPE ALL…" Command="{Binding EditAllHeadlinesCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,6,0" ToolTip="Enter or paste every headline with its caption at once"/>
-                                    <Button Content="+ ADD" Command="{Binding AddHeadlineItemCommand}" Style="{StaticResource SmallPrimary}" Margin="0,0,6,0" ToolTip="Add a headline over the source selected in SOURCES (or a plain headline slide)"/>
-                                    <Button Content="▲" Command="{Binding MoveHeadlineUpCommand}" Style="{StaticResource SmallButton}" Margin="0,0,3,0" ToolTip="Move up"/>
-                                    <Button Content="▼" Command="{Binding MoveHeadlineDownCommand}" Style="{StaticResource SmallButton}" Margin="0,0,6,0" ToolTip="Move down"/>
-                                    <Button Content="CUE" Command="{Binding CueHeadlineItemCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,4,0" ToolTip="Show this headline's video or picture on the Preview monitor"/>
-                                    <Button Content="REMOVE" Command="{Binding RemoveHeadlineItemCommand}" Style="{StaticResource SmallButton}"/>
+
+                                <WrapPanel Grid.Row="1" Margin="0,6,0,0">
+                                    <Button Content="📝 TYPE ALL…" Command="{Binding EditAllHeadlinesCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,4,4" ToolTip="Write or paste every headline and summary at once"/>
+                                    <Button Content="+ STORY" Command="{Binding AddHeadlineItemCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,4" ToolTip="New story with the source selected in SOURCES (or a headline slide)"/>
+                                    <Button Content="▲" Command="{Binding MoveHeadlineUpCommand}" Style="{StaticResource SmallButton}" Margin="0,0,2,4"/>
+                                    <Button Content="▼" Command="{Binding MoveHeadlineDownCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,4"/>
+                                    <Button Content="CUE" Command="{Binding CueStoryCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,4,4"/>
+                                    <Button Content="TAKE LIVE NOW" Command="{Binding TakeLiveRundownCommand}" Style="{StaticResource SmallPrimary}" Margin="0,0,4,4" ToolTip="Story media on air with its lower third"/>
+                                    <Button Content="REMOVE" Command="{Binding RemoveHeadlineItemCommand}" Style="{StaticResource SmallButton}" Margin="0,0,0,4"/>
                                 </WrapPanel>
+
+                                <!-- Headlines segment: the stories ticked HL -->
+                                <Border Grid.Row="2" Background="{StaticResource InkBase}" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" Padding="6,4">
+                                    <StackPanel>
+                                        <WrapPanel>
+                                            <TextBlock Text="HEADLINES" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <Button Content="▶ PLAY" Command="{Binding PlayHeadlinesCommand}" Style="{StaticResource SmallPrimary}" Margin="0,0,3,0" ToolTip="Take every HL story live in order"/>
+                                            <Button Content="◀" Command="{Binding PreviousHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="0,0,2,0"/>
+                                            <Button Content="▶" Command="{Binding NextHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="0,0,2,0"/>
+                                            <Button Content="■" Command="{Binding StopHeadlinesCommand}" Style="{StaticResource SmallButton}" Margin="0,0,6,0" ToolTip="Stop the segment"/>
+                                            <Button Command="{Binding ToggleHeadlinesBoardCommand}" ToolTip="Every HL headline and summary on screen together">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource SmallButton}">
+                                                        <Setter Property="Content" Value="▦ SHOW ALL"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsHeadlinesBoardLive}" Value="True">
+                                                                <Setter Property="Content" Value="■ HIDE ALL"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </WrapPanel>
+                                        <DockPanel Margin="0,4,0,0">
+                                            <CheckBox DockPanel.Dock="Left" Content="Auto-advance" IsChecked="{Binding HeadlinesAutoAdvance}" FontSize="10.5" Margin="0,0,8,0"/>
+                                            <TextBox DockPanel.Dock="Right" Text="{Binding HeadlinesBoardTitle, UpdateSourceTrigger=LostFocus}" Width="130" Padding="4,1" FontSize="10.5" ToolTip="Heading above SHOW ALL"/>
+                                            <TextBlock Text="{Binding HeadlinesStatusText}" FontSize="10" Foreground="{StaticResource TextMuted}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </Border>
                             </Grid>
 
-                            <!-- Selected headline + segment playback -->
+                            <!-- The selected story: write it once, attach its media -->
                             <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
                                 <StackPanel>
-                                    <StackPanel>
-                                        <StackPanel.Style>
-                                            <Style TargetType="StackPanel">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding SelectedHeadlineItem}" Value="{x:Null}">
-                                                        <Setter Property="IsEnabled" Value="False"/>
-                                                        <Setter Property="Opacity" Value="0.45"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </StackPanel.Style>
-                                        <TextBlock Text="Headline" Style="{StaticResource FieldLabel}"/>
-                                        <TextBox Text="{Binding SelectedHeadlineItem.Title, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" Margin="0,0,0,6" TextWrapping="Wrap" MaxHeight="44"/>
-                                        <TextBlock Text="Summary" Style="{StaticResource FieldLabel}"/>
-                                        <TextBox Text="{Binding SelectedHeadlineItem.Subtitle, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" Margin="0,0,0,6"/>
-                                        <Grid Margin="0,0,0,6">
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/><ColumnDefinition Width="70"/></Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0">
-                                                <TextBlock Text="Tag" Style="{StaticResource FieldLabel}"/>
-                                                <TextBox Text="{Binding SelectedHeadlineItem.Category, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" ToolTip="Seconds on air. For a video, 0 plays the whole clip.">
-                                                <TextBlock Text="Seconds" Style="{StaticResource FieldLabel}"/>
-                                                <TextBox Text="{Binding SelectedHeadlineItem.DurationSeconds, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
-                                            </StackPanel>
-                                        </Grid>
-                                        <TextBlock Text="Video / picture" Style="{StaticResource FieldLabel}"/>
-                                        <TextBlock Text="{Binding SelectedHeadlineItem.MediaLabel}" Foreground="{StaticResource TextHi}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
-                                        <WrapPanel Margin="0,0,0,10">
-                                            <Button Content="USE SELECTED SOURCE" Command="{Binding UseSelectedMediaForHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,4" ToolTip="Use the video or picture selected in SOURCES"/>
-                                            <Button Content="NO MEDIA" Command="{Binding ClearHeadlineMediaCommand}" Style="{StaticResource SmallButton}" Margin="0,0,0,4" ToolTip="Show as a full-screen headline slide"/>
-                                        </WrapPanel>
-                                    </StackPanel>
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedHeadlineItem}" Value="{x:Null}">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                    <Setter Property="Opacity" Value="0.45"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
 
-                                    <TextBlock Text="ALL AT ONCE" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Text="{Binding HeadlinesBoardTitle, UpdateSourceTrigger=LostFocus}" Padding="6,3" Margin="0,0,0,4" ToolTip="Heading shown above the list"/>
-                                    <Button Command="{Binding ToggleHeadlinesBoardCommand}" Margin="0,0,0,10"
-                                            ToolTip="Every headline and caption on screen together: text on the left, the program's video or picture framed on the right">
-                                        <Button.Style>
-                                            <Style TargetType="Button" BasedOn="{StaticResource SmallPrimary}">
-                                                <Setter Property="Content" Value="▦ SHOW ALL HEADLINES"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsHeadlinesBoardLive}" Value="True">
-                                                        <Setter Property="Content" Value="■ HIDE ALL HEADLINES"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-
-                                    <TextBlock Text="PLAY SEGMENT (one by one)" Style="{StaticResource FieldLabel}"/>
-                                    <Grid Margin="0,0,0,4">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="4"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                        <Button Content="▶ PLAY HEADLINES" Command="{Binding PlayHeadlinesCommand}" Style="{StaticResource SmallPrimary}" ToolTip="Take every headline live in order, from the top"/>
-                                        <Button Grid.Column="2" Content="■ STOP" Command="{Binding StopHeadlinesCommand}" Style="{StaticResource SmallButton}" ToolTip="End the segment and clear its lower third (the current shot stays on air)"/>
+                                    <TextBlock Text="Headline (lower third + headlines)" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding SelectedHeadlineItem.Title, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" Margin="0,0,0,5" TextWrapping="Wrap" MaxHeight="44"/>
+                                    <TextBlock Text="Summary" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding SelectedHeadlineItem.Subtitle, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" Margin="0,0,0,5" TextWrapping="Wrap" MaxHeight="44"/>
+                                    <Grid Margin="0,0,0,5">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Tag" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding SelectedHeadlineItem.Category, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" ToolTip="Seconds in the headlines segment. For a video, 0 plays the whole clip.">
+                                            <TextBlock Text="HL secs" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding SelectedHeadlineItem.DurationSeconds, UpdateSourceTrigger=PropertyChanged}" Padding="6,3"/>
+                                        </StackPanel>
                                     </Grid>
-                                    <UniformGrid Columns="2" Margin="0,0,0,6">
-                                        <Button Content="◀ PREV" Command="{Binding PreviousHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="0,0,2,0"/>
-                                        <Button Content="NEXT ▶" Command="{Binding NextHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="2,0,0,0"/>
-                                    </UniformGrid>
-                                    <CheckBox Content="Auto-advance (uses each headline's seconds)" IsChecked="{Binding HeadlinesAutoAdvance}" Margin="0,0,0,6"/>
-                                    <TextBlock Text="{Binding HeadlinesStatusText}" FontSize="10.5" Foreground="{StaticResource TextMuted}" TextWrapping="Wrap"/>
+                                    <CheckBox Content="Include in the headlines" IsChecked="{Binding SelectedHeadlineItem.InHeadlines}" Margin="0,0,0,8" FontSize="11"/>
+
+                                    <TextBlock Text="Main video / picture" Style="{StaticResource FieldLabel}"/>
+                                    <TextBlock Text="{Binding SelectedHeadlineItem.MediaLabel}" Foreground="{StaticResource TextHi}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,0,0,3"/>
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <Button Content="USE SELECTED SOURCE" Command="{Binding UseSelectedMediaForHeadlineCommand}" Style="{StaticResource SmallButton}" Margin="0,0,4,0" ToolTip="Use the video or picture selected in SOURCES"/>
+                                        <Button Content="NONE" Command="{Binding ClearHeadlineMediaCommand}" Style="{StaticResource SmallButton}" ToolTip="Show the story as a full-screen headline slide"/>
+                                    </WrapPanel>
+
+                                    <DockPanel Margin="0,0,0,3">
+                                        <Button DockPanel.Dock="Right" Content="+ ADD SELECTED" Command="{Binding AddStoryExtraMediaCommand}" Style="{StaticResource SmallButton}" Padding="6,1" FontSize="10" ToolTip="Add the source selected in SOURCES to this story"/>
+                                        <TextBlock Text="More media for this story" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <ItemsControl ItemsSource="{Binding SelectedHeadlineItem.ExtraMedia}" Margin="0,0,0,6">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{StaticResource InkBase}" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" Padding="6,3" Margin="0,0,0,3">
+                                                    <DockPanel>
+                                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                            <Button Content="REPLACE" Command="{Binding DataContext.ReplaceWithStoryMediaCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Style="{StaticResource SmallPrimary}" Padding="5,1" FontSize="9.5" Margin="0,0,2,0" ToolTip="Take this live in place of the current shot (lower third stays)"/>
+                                                            <Button Content="VO" Command="{Binding DataContext.VoiceOverStoryMediaCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Style="{StaticResource SmallButton}" Padding="5,1" FontSize="9.5" Margin="0,0,2,0" ToolTip="Play its sound as a voice-over under what's on air"/>
+                                                            <Button Content="W1" Command="{Binding DataContext.Window1StoryMediaCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Style="{StaticResource SmallButton}" Padding="5,1" FontSize="9.5" Margin="0,0,2,0" ToolTip="Show in speaker window 1"/>
+                                                            <Button Content="W2" Command="{Binding DataContext.Window2StoryMediaCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Style="{StaticResource SmallButton}" Padding="5,1" FontSize="9.5" Margin="0,0,2,0" ToolTip="Show in speaker window 2"/>
+                                                            <Button Content="✕" Command="{Binding DataContext.RemoveStoryExtraMediaCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Style="{StaticResource SmallButton}" Padding="5,1" FontSize="9.5" ToolTip="Remove from this story"/>
+                                                        </StackPanel>
+                                                        <StackPanel VerticalAlignment="Center" Margin="0,0,4,0">
+                                                            <TextBlock Text="{Binding Title}" Foreground="{StaticResource TextHi}" FontSize="10.5" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding KindLabel}" Foreground="{StaticResource TextDim}" FontSize="8.5" FontWeight="Bold"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <CheckBox Content="Taking a story puts up its lower third" IsChecked="{Binding StoryLowerThirdAuto}" FontSize="10.5" Margin="0,0,0,4"/>
+                                    <TextBlock FontSize="10.5" Foreground="{StaticResource AccentCoral}" TextTrimming="CharacterEllipsis"
+                                               Text="{Binding OnAirStory.ListTitle, StringFormat='ON AIR: {0}', FallbackValue='No story on air', TargetNullValue='No story on air'}"/>
                                 </StackPanel>
                             </ScrollViewer>
                         </Grid>
@@ -1631,6 +1669,7 @@
                                     <Run Text="F5" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="   TAKE Preview to Program"/><LineBreak/>
                                     <Run Text="F6" FontFamily="Consolas" FontWeight="Bold" Foreground="#4A93F0"/><Run Text="   Toggle standby slate"/><LineBreak/>
                                     <Run Text="F7" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="   Breaking news live"/><LineBreak/>
+                                    <Run Text="F8" FontFamily="Consolas" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="   Theme intro to air (emergency filler)"/><LineBreak/>
                                     <Run Text="Space" FontFamily="Consolas" FontWeight="Bold"/><Run Text="  Play / pause program video"/><LineBreak/>
                                     <Run Text="Esc" FontFamily="Consolas" FontWeight="Bold"/><Run Text="   Emergency standby"/>
                                 </TextBlock>
@@ -1708,7 +1747,7 @@
                     <TextBlock Text="STATUS" Style="{StaticResource MicroLabel}" Margin="0,0,8,0"/>
                     <TextBlock Text="{Binding StatusNotification}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMid}" TextTrimming="CharacterEllipsis" MaxWidth="1050"/>
                 </StackPanel>
-                <TextBlock Text="F5 Take · F6 Standby · F7 Breaking · Space Play/Pause · Esc Emergency" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Foreground="{StaticResource TextDim}"/>
+                <TextBlock Text="F5 Take · F6 Standby · F7 Breaking · F8 Intro · Space Play/Pause · Esc Emergency" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Foreground="{StaticResource TextDim}"/>
             </Grid>
         </Border>
 

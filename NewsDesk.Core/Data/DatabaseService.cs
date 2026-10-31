@@ -134,19 +134,32 @@ public class DatabaseService : IDisposable
     /// </summary>
     private static void MigrateSchema(SqliteConnection conn)
     {
+        AddMissingColumns(conn, "MediaItems",
+            ("CaptionName", "TEXT NOT NULL DEFAULT ''"),
+            ("CaptionTitle", "TEXT NOT NULL DEFAULT ''"),
+            ("OriginalPath", "TEXT NOT NULL DEFAULT ''"));
+
+        // Headline entries became rundown stories: headlines-segment flag + extra media
+        AddMissingColumns(conn, "HeadlineSequence",
+            ("InHeadlines", "INTEGER NOT NULL DEFAULT 1"),
+            ("ExtraMediaIds", "TEXT NOT NULL DEFAULT ''"));
+    }
+
+    private static void AddMissingColumns(SqliteConnection conn, string table, params (string Name, string Definition)[] columns)
+    {
         var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using (var info = conn.CreateCommand())
         {
-            info.CommandText = "PRAGMA table_info(MediaItems);";
+            info.CommandText = $"PRAGMA table_info({table});";
             using var reader = info.ExecuteReader();
             while (reader.Read()) existing.Add(reader.GetString(1));
         }
 
-        foreach (var column in new[] { "CaptionName", "CaptionTitle", "OriginalPath" })
+        foreach (var (name, definition) in columns)
         {
-            if (existing.Contains(column)) continue;
+            if (existing.Contains(name)) continue;
             using var alter = conn.CreateCommand();
-            alter.CommandText = $"ALTER TABLE MediaItems ADD COLUMN {column} TEXT NOT NULL DEFAULT '';";
+            alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {name} {definition};";
             alter.ExecuteNonQuery();
         }
     }
@@ -702,7 +715,7 @@ public class DatabaseService : IDisposable
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
-            SELECT Id, OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId
+            SELECT Id, OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId, InHeadlines, ExtraMediaIds
             FROM HeadlineSequence
             ORDER BY OrderIndex ASC, Id ASC;
         ";
@@ -718,7 +731,9 @@ public class DatabaseService : IDisposable
                 Subtitle = reader.GetString(3),
                 Category = reader.GetString(4),
                 DurationSeconds = reader.GetInt32(5),
-                MediaItemId = reader.IsDBNull(6) ? null : reader.GetInt32(6)
+                MediaItemId = reader.IsDBNull(6) ? null : reader.GetInt32(6),
+                InHeadlines = reader.IsDBNull(7) || reader.GetInt32(7) != 0,
+                ExtraMediaIds = ParseIds(reader.IsDBNull(8) ? "" : reader.GetString(8))
             });
         }
         return list;
@@ -738,7 +753,9 @@ public class DatabaseService : IDisposable
                     Subtitle = $subtitle,
                     Category = $category,
                     DurationSeconds = $duration,
-                    MediaItemId = $mediaId
+                    MediaItemId = $mediaId,
+                    InHeadlines = $inHeadlines,
+                    ExtraMediaIds = $extraIds
                 WHERE Id = $id;
             ";
             cmd.Parameters.AddWithValue("$id", item.Id);
@@ -746,8 +763,8 @@ public class DatabaseService : IDisposable
         else
         {
             cmd.CommandText = @"
-                INSERT INTO HeadlineSequence (OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId)
-                VALUES ($order, $title, $subtitle, $category, $duration, $mediaId);
+                INSERT INTO HeadlineSequence (OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId, InHeadlines, ExtraMediaIds)
+                VALUES ($order, $title, $subtitle, $category, $duration, $mediaId, $inHeadlines, $extraIds);
                 SELECT last_insert_rowid();
             ";
         }
@@ -758,6 +775,12 @@ public class DatabaseService : IDisposable
         cmd.Parameters.AddWithValue("$category", item.Category ?? string.Empty);
         cmd.Parameters.AddWithValue("$duration", item.DurationSeconds);
         cmd.Parameters.AddWithValue("$mediaId", (object?)item.MediaItemId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$inHeadlines", item.InHeadlines ? 1 : 0);
+        // Saved from the resolved list when there is one, so removals stick
+        var extraIds = item.ExtraMedia.Count > 0 || item.ExtraMediaIds.Count == 0
+            ? item.ExtraMedia.Select(m => m.Id)
+            : item.ExtraMediaIds;
+        cmd.Parameters.AddWithValue("$extraIds", string.Join(",", extraIds));
 
         if (item.Id > 0)
         {
@@ -769,7 +792,32 @@ public class DatabaseService : IDisposable
         return item.Id;
     }
 
+    /// <summary>
+    /// Writes a complete, consistent copy of the database to a Backups folder beside
+    /// it and returns the copy's path. Taken before any change to the operator's work.
+    /// </summary>
+    public string CreateBackup(string label)
+    {
+        var dir = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(_dbPath)) ?? ".", "Backups");
+        Directory.CreateDirectory(dir);
+        var target = Path.Combine(dir, $"newsdesk_{label}_{DateTime.Now:yyyy-MM-dd_HHmmss}.db");
+
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "VACUUM INTO $target;";
+        cmd.Parameters.AddWithValue("$target", target);
+        cmd.ExecuteNonQuery();
+        return target;
+    }
+
+    private static List<int> ParseIds(string text) =>
+        text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => int.TryParse(s, out var id) ? id : 0)
+            .Where(id => id > 0)
+            .ToList();
+
     public void DeleteHeadlineSequenceItem(int id)
+
     {
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
