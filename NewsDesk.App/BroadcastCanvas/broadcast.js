@@ -380,6 +380,9 @@
         const outgoingVideo = getActiveVideo();
         const incomingVideo = getStandbyVideo();
 
+        // Headlines at the side: the frame takes the incoming media's shape as it cuts in
+        fitSideFrame(incomingScene);
+
         // Hide the compact station bug while a full-brand slide is on air
         document.body.classList.toggle('on-graphic', getStandbyGraphic().style.display === 'flex');
 
@@ -1273,12 +1276,54 @@
         document.body.classList.add('side-layout');
         sidePanel.classList.remove('hidden');
         if (!wasOpen) restartAnimations(sidePanel);
+        fitSideFrame(getActiveScene());
     }
 
     function closeSidePanel() {
         document.body.classList.remove('side-layout');
         sidePanel.classList.add('hidden');
+        fitSideFrame(null); // back to full screen
     }
+
+    // Area the framed media may use beside the text panel (stage pixels)
+    const SIDE_BOX = { x: 680, y: 130, w: 1160, h: 730 };
+
+    function mediaAspect(scene) {
+        const vid = scene && scene.querySelector('.scene-video');
+        const img = scene && scene.querySelector('.scene-image');
+        if (vid && vid.style.display !== 'none' && vid.videoWidth) return vid.videoWidth / vid.videoHeight;
+        if (img && img.style.display === 'block' && img.naturalWidth) return img.naturalWidth / img.naturalHeight;
+        return 16 / 9;
+    }
+
+    /**
+     * Shapes the side frame to the scene's video or picture (an upright phone clip
+     * gets a tall frame, a wide clip a wide one) so nothing is cropped. Outside the
+     * side layout the scenes go back to full screen.
+     */
+    function fitSideFrame(scene) {
+        const layer = document.getElementById('layer-scenes');
+        if (!document.body.classList.contains('side-layout')) {
+            ['left', 'top', 'width', 'height'].forEach(p => layer.style.removeProperty(p));
+            return;
+        }
+        const aspect = Math.max(0.4, Math.min(3, mediaAspect(scene)));
+        let w = SIDE_BOX.w;
+        let h = w / aspect;
+        if (h > SIDE_BOX.h) {
+            h = SIDE_BOX.h;
+            w = h * aspect;
+        }
+        layer.style.left = `${Math.round(SIDE_BOX.x + (SIDE_BOX.w - w) / 2)}px`;
+        layer.style.top = `${Math.round(SIDE_BOX.y + (SIDE_BOX.h - h) / 2)}px`;
+        layer.style.width = `${Math.round(w)}px`;
+        layer.style.height = `${Math.round(h)}px`;
+    }
+
+    // A clip whose size was not known yet when it went on air reshapes the frame once it is
+    [videoA, videoB].forEach(v => v.addEventListener('loadedmetadata', () => {
+        if (v === getActiveVideo()) fitSideFrame(getActiveScene());
+    }));
 
     function showHeadlineSide(data) {
         data = data || {};

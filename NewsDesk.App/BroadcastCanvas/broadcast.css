@@ -1677,11 +1677,13 @@ body.speakers-full .scene-caption { opacity: 0; }
 }
 
 body.side-layout .side-backdrop { opacity: 1; }
+/* Default 16:9 frame; broadcast.js reshapes it to each video/picture (fitSideFrame)
+   inside the area x 680–1840, y 130–860, so nothing is cropped */
 body.side-layout #layer-scenes {
-    left: 820px;
-    top: 150px;
-    width: 1010px;
-    height: 568px;
+    left: 680px;
+    top: 168px;
+    width: 1160px;
+    height: 653px;
     box-shadow: 0 0 0 6px #FFFFFF, 0 -2px 0 8px var(--red), 0 24px 60px rgba(12, 20, 36, 0.45);
 }
 
@@ -1692,7 +1694,7 @@ body.side-layout .station-chip { opacity: 1; }
     position: absolute;
     left: var(--edge-x);
     top: 150px;
-    width: 680px;
+    width: 560px;
     bottom: calc(var(--ticker-h) + var(--floor-h) + 50px);
     display: flex;
     flex-direction: column;
@@ -1741,7 +1743,7 @@ body.side-layout .station-chip { opacity: 1; }
 .side-title {
     font-family: var(--font-head);
     font-weight: 900;
-    font-size: 66px;
+    font-size: 56px;
     line-height: 1.04;
     color: var(--navy);
     text-transform: uppercase;
@@ -1824,3 +1826,7 @@ body.side-layout .station-chip { opacity: 1; }
     from { opacity: 0; transform: translateY(24px); }
     to   { opacity: 1; transform: none; }
 }
+
+/* In the side frame the whole picture shows; the frame itself takes the media's shape */
+body.side-layout .scene-video,
+body.side-layout .scene-image { object-fit: contain; }
