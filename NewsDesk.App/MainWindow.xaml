@@ -484,6 +484,20 @@
                               DisplayMemberPath="Description"
                               Width="250" Margin="0,0,6,0"/>
                     <Button Content="⟳" Command="{Binding RefreshDisplaysCommand}" Style="{StaticResource SmallButton}" ToolTip="Refresh detected monitors" Margin="0,0,10,0"/>
+                    <Button Command="{Binding TogglePopoutCommand}" Margin="0,0,6,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource SmallButton}">
+                                <Setter Property="Content" Value="⧉ TEST RUN"/>
+                                <Setter Property="ToolTip" Value="Pop out the real projector output in a window on this screen. Rehearse in it before the projector; once the projector is open it becomes a muted mirror."/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsPopoutOpen}" Value="True">
+                                        <Setter Property="Content" Value="✕ CLOSE TEST RUN"/>
+                                        <Setter Property="ToolTip" Value="Close the pop-out output window"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                     <Button Content="LAUNCH PROJECTOR" Command="{Binding LaunchBroadcastCommand}" Style="{StaticResource SmallAzure}" Margin="0,0,6,0"/>
                     <Button Content="CLOSE OUTPUT" Command="{Binding CloseBroadcastCommand}" Style="{StaticResource SmallButton}"/>
                 </StackPanel>

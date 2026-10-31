@@ -21,7 +21,20 @@ public class MainViewModel : ViewModelBase
     private readonly DisplayManager _displayManager;
     private readonly Dispatcher _dispatcher;
 
-    private BroadcastWindow? _broadcastWindow;
+    // Fullscreen projector output, and an optional resizable TEST RUN pop-out on the operator screen
+    private BroadcastWindow? _projectorWindow;
+    private BroadcastWindow? _popoutWindow;
+
+    /// <summary>
+    /// The canvas the host takes handshakes, telemetry and sound from: the projector
+    /// when it is open, otherwise the pop-out (so a test run behaves exactly like air).
+    /// </summary>
+    private BroadcastWindow? _broadcastWindow => _projectorWindow ?? _popoutWindow;
+
+    private bool IsDrivingCanvas(BroadcastWindow window) => ReferenceEquals(window, _broadcastWindow);
+
+    private const string PopoutTestRunTitle = "TEST RUN — projector preview (this window is the output)";
+    private const string PopoutMirrorTitle = "PROJECTOR MIRROR — muted copy of the live output";
 
         // Signals that the canvas has loaded media into the standby slot (safe to take live)
         private TaskCompletionSource<bool>? _scenePreparedTcs;
@@ -287,6 +300,13 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _isBroadcastWindowOpen, value);
     }
 
+    private bool _isPopoutOpen;
+    public bool IsPopoutOpen
+    {
+        get => _isPopoutOpen;
+        set => SetProperty(ref _isPopoutOpen, value);
+    }
+
     private string _transitionPreviewStatus = "Ready";
     public string TransitionPreviewStatus
     {
@@ -544,6 +564,7 @@ public class MainViewModel : ViewModelBase
 
     public RelayCommand LaunchBroadcastCommand { get; }
     public RelayCommand CloseBroadcastCommand { get; }
+    public RelayCommand TogglePopoutCommand { get; }
     public RelayCommand RefreshDisplaysCommand { get; }
     public RelayCommand TestTransitionCommand { get; }
 
@@ -628,6 +649,7 @@ public class MainViewModel : ViewModelBase
 
         LaunchBroadcastCommand = new RelayCommand(LaunchBroadcast);
         CloseBroadcastCommand = new RelayCommand(CloseBroadcast);
+        TogglePopoutCommand = new RelayCommand(TogglePopout);
         RefreshDisplaysCommand = new RelayCommand(RefreshDisplays);
         TestTransitionCommand = new RelayCommand(TestTransition);
 
@@ -939,19 +961,7 @@ public class MainViewModel : ViewModelBase
         _scenePreparedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         // Cue media in standby slot on broadcast canvas
-        var mediaUrl = $"{_server.BaseUrl}media/{media.Id}";
-        SendCanvasCommand("load_scene", new LoadSceneData
-        {
-            Type = media.IsImage ? "image" : "video",
-            MediaUrl = mediaUrl,
-            MediaId = media.Id,
-            Title = media.Title,
-            Transition = TransitionConfig.ToCommandName(media.AssignedTransition),
-            TransitionDurationMs = TransitionConfig.GetDurationMs(media.AssignedTransition),
-            AutoPlay = true,
-            CaptionName = media.CaptionName,
-            CaptionTitle = media.CaptionTitle
-        });
+        SendCanvasCommand("load_scene", MediaSceneData(media));
 
         StatusNotification = $"Cueing preview: '{media.Title}' [Effect: {media.AssignedTransition}] — TAKE LIVE unlocks when prepared. Current broadcast untouched.";
     }
@@ -2116,19 +2126,72 @@ public class MainViewModel : ViewModelBase
 
     private void LaunchBroadcast()
     {
-        if (_broadcastWindow != null && _broadcastWindow.IsLoaded)
+        if (_projectorWindow is { IsLoaded: true })
         {
-            _broadcastWindow.ApplyDisplayPlacement(SelectedDisplay);
-            _broadcastWindow.Activate();
+            _projectorWindow.ApplyDisplayPlacement(SelectedDisplay);
+            _projectorWindow.Activate();
             return;
         }
 
-        _broadcastWindow = new BroadcastWindow(_server.BaseUrl, SelectedDisplay);
+        var window = new BroadcastWindow(_server.BaseUrl, SelectedDisplay);
+        _projectorWindow = window;
 
-        _broadcastWindow.TimeUpdated += (s, args) =>
+        // The projector takes over sound and handshakes; a test-run pop-out becomes its muted mirror
+        if (_popoutWindow != null)
+        {
+            _popoutWindow.IsMuted = true;
+            _popoutWindow.Title = PopoutMirrorTitle;
+        }
+
+        WireCanvasEvents(window);
+        window.Show();
+        IsBroadcastWindowOpen = true;
+        StatusNotification = window.IsOnOperatorScreen
+            ? "No projector selected — broadcast output opened on this screen (not topmost; Esc / F-keys still work, Alt+F4 closes it)."
+            : $"Broadcast screen launched fullscreen on: {SelectedDisplay?.Description}";
+    }
+
+    /// <summary>
+    /// Opens (or closes) the TEST RUN pop-out: the real broadcast canvas in a
+    /// resizable window. Without a projector it IS the output, so a rehearsal
+    /// runs every take, transition and overlay exactly as air would. Once the
+    /// projector is open it receives the same commands as a muted mirror.
+    /// </summary>
+    private void TogglePopout()
+    {
+        if (_popoutWindow != null)
+        {
+            _popoutWindow.Close(); // Closed hands the output back and clears state
+            return;
+        }
+
+        bool mirror = _projectorWindow != null;
+        var window = new BroadcastWindow(_server.BaseUrl, isPopout: true)
+        {
+            IsMuted = mirror,
+            Title = mirror ? PopoutMirrorTitle : PopoutTestRunTitle
+        };
+        _popoutWindow = window;
+
+        WireCanvasEvents(window);
+        window.Show();
+        IsPopoutOpen = true;
+        StatusNotification = mirror
+            ? "Projector mirror opened: a muted copy of what the projector is showing."
+            : "TEST RUN window opened — rehearse here: everything you take live plays in this window. LAUNCH PROJECTOR when ready and this window becomes a muted mirror.";
+    }
+
+    /// <summary>
+    /// Subscribes the host to one canvas. Only the driving canvas may confirm
+    /// scenes, finish transitions or report playback; a mirror's events are ignored.
+    /// </summary>
+    private void WireCanvasEvents(BroadcastWindow window)
+    {
+        window.TimeUpdated += (s, args) =>
         {
             _dispatcher.Invoke(() =>
             {
+                if (!IsDrivingCanvas(window)) return;
                 // Keep the authoritative playback flag in sync (Space toggles from this)
                 _stateManager.State.IsPlaying = !args.Paused;
                 OnPropertyChanged(nameof(IsPlaying));
@@ -2146,20 +2209,27 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        _broadcastWindow.TransitionFinished += (s, args) =>
+        window.TransitionFinished += (s, args) =>
         {
             _dispatcher.Invoke(() =>
             {
+                if (!IsDrivingCanvas(window)) return;
                 _stateManager.CompleteTransition();
                 StatusNotification = $"Transition {args.Transition} completed successfully in 500ms.";
                 AutoCueNextRundownStory();
             });
         };
 
-        _broadcastWindow.CanvasReady += (s, args) =>
+        window.CanvasReady += (s, args) =>
         {
             _dispatcher.Invoke(() =>
             {
+                if (!IsDrivingCanvas(window))
+                {
+                    SyncMirrorCanvas(window);
+                    return;
+                }
+
                 // Clear any transition flag stuck from a broadcast that ran without this window
                 _stateManager.ResetTransition();
 
@@ -2170,7 +2240,12 @@ public class MainViewModel : ViewModelBase
                 SendCanvasCommand("set_scene_captions", _stateManager.State.IsSceneCaptionVisible);
 
                 // A reloaded canvas has lost its overlays: speakers come back, a VO does not
-                if (_stateManager.State.IsVoiceOverActive) _stateManager.SetVoiceOverActive(false);
+                // (an open pop-out still has the VO, so stop it there too and keep both canvases alike)
+                if (_stateManager.State.IsVoiceOverActive)
+                {
+                    _stateManager.SetVoiceOverActive(false);
+                    SendCanvasCommand("stop_voice_over");
+                }
                 if (_stateManager.State.AreSpeakersLive) ShowSpeakers();
 
                 // Cue-before-launch fix: re-send anything already sitting in Preview so
@@ -2179,10 +2254,11 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        _broadcastWindow.ScenePrepared += (s, args) =>
+        window.ScenePrepared += (s, args) =>
         {
             _dispatcher.Invoke(() =>
             {
+                if (!IsDrivingCanvas(window)) return;
                 var tcs = _scenePreparedTcs;
                 _scenePreparedTcs = null;
                 tcs?.TrySetResult(true);
@@ -2194,10 +2270,11 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        _broadcastWindow.PlaybackError += (s, message) =>
+        window.PlaybackError += (s, message) =>
         {
             _dispatcher.Invoke(() =>
             {
+                if (!IsDrivingCanvas(window)) return;
                 // A failed preview load must unblock any pending TAKE LIVE wait
                 // immediately and leave the command disabled. Never treat an
                 // error as a prepared scene.
@@ -2213,15 +2290,16 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        _broadcastWindow.IntroEnded += (s, action) =>
+        window.IntroEnded += (s, action) =>
         {
-            _dispatcher.Invoke(() => OnIntroEnded(action));
+            _dispatcher.Invoke(() => { if (IsDrivingCanvas(window)) OnIntroEnded(action); });
         };
 
-        _broadcastWindow.IntroError += (s, message) =>
+        window.IntroError += (s, message) =>
         {
             _dispatcher.Invoke(() =>
             {
+                if (!IsDrivingCanvas(window)) return;
                 // The canvas closes the intro itself; land on standby rather than a half-ready scene
                 _introActionOverride = "standby";
                 IntroStatusText = "Intro failed";
@@ -2229,67 +2307,138 @@ public class MainViewModel : ViewModelBase
             });
         };
 
-        _broadcastWindow.VoiceOverEnded += (s, args) =>
+        window.VoiceOverEnded += (s, args) =>
         {
             _dispatcher.Invoke(() =>
             {
+                if (!IsDrivingCanvas(window)) return;
                 if (!_stateManager.State.IsVoiceOverActive) return;
                 _stateManager.SetVoiceOverActive(false);
                 StatusNotification = "Voice-over finished — program audio restored.";
             });
         };
 
-        _broadcastWindow.OverlayError += (s, message) =>
+        window.OverlayError += (s, message) =>
         {
-            _dispatcher.Invoke(() => StatusNotification = $"OVERLAY: {message}");
+            _dispatcher.Invoke(() => { if (IsDrivingCanvas(window)) StatusNotification = $"OVERLAY: {message}"; });
         };
 
-        _broadcastWindow.ShortcutKeyPressed += (s, key) =>
+        window.ShortcutKeyPressed += (s, key) =>
         {
             _dispatcher.Invoke(() => HandleShortcutKey(key));
         };
 
-        _broadcastWindow.MediaEnded += (s, args) =>
+        window.MediaEnded += (s, args) =>
         {
             _dispatcher.Invoke(() =>
             {
+                if (!IsDrivingCanvas(window)) return;
                 if (IsHeadlinesPlaying) OnHeadlineMediaEnded();
                 else _ = AutoAdvanceRundownAsync();
             });
         };
 
-        _broadcastWindow.Closed += (s, e) =>
-        {
-            _broadcastWindow = null;
-            if (_stateManager.State.IsVoiceOverActive) _stateManager.SetVoiceOverActive(false);
-            if (_stateManager.State.AreSpeakersLive) _stateManager.SetSpeakersLive(false);
-            if (_isIntroPlaying)
-            {
-                _isIntroPlaying = false;
-                _stateManager.SetIntroActive(false);
-                IntroStatusText = "Intro idle";
-                CommandManager.InvalidateRequerySuggested();
-            }
-            IsBroadcastWindowOpen = false;
-            StatusNotification = "Broadcast output window closed.";
-        };
+        window.Closed += (s, e) => OnCanvasClosed(window);
+    }
 
-        _broadcastWindow.Show();
-        IsBroadcastWindowOpen = true;
-        StatusNotification = _broadcastWindow.IsOnOperatorScreen
-            ? "No projector selected — broadcast output opened on this screen (not topmost; Esc / F-keys still work, Alt+F4 closes it)."
-            : $"Broadcast screen launched fullscreen on: {SelectedDisplay?.Description}";
+    private void OnCanvasClosed(BroadcastWindow window)
+    {
+        bool wasDriving = IsDrivingCanvas(window);
+        if (ReferenceEquals(window, _projectorWindow))
+        {
+            _projectorWindow = null;
+            IsBroadcastWindowOpen = false;
+        }
+        if (ReferenceEquals(window, _popoutWindow))
+        {
+            _popoutWindow = null;
+            IsPopoutOpen = false;
+        }
+
+        if (!wasDriving)
+        {
+            StatusNotification = "Projector mirror closed. The projector output is unaffected.";
+            return;
+        }
+
+        // The pop-out has received every command the projector did: it carries on as the output
+        if (_broadcastWindow is { } remaining)
+        {
+            remaining.IsMuted = false;
+            remaining.Title = PopoutTestRunTitle;
+            StatusNotification = "Projector closed — the TEST RUN window is now the output.";
+            return;
+        }
+
+        if (_stateManager.State.IsVoiceOverActive) _stateManager.SetVoiceOverActive(false);
+        if (_stateManager.State.AreSpeakersLive) _stateManager.SetSpeakersLive(false);
+        if (_isIntroPlaying)
+        {
+            _isIntroPlaying = false;
+            _stateManager.SetIntroActive(false);
+            IntroStatusText = "Intro idle";
+            CommandManager.InvalidateRequerySuggested();
+        }
+        StatusNotification = window.IsPopout ? "TEST RUN window closed." : "Broadcast output window closed.";
     }
 
     private void CloseBroadcast()
     {
-        if (_broadcastWindow != null)
-        {
-            _broadcastWindow.Close();
-            _broadcastWindow = null;
-            IsBroadcastWindowOpen = false;
-        }
+        _projectorWindow?.Close(); // Closed updates state (and hands over to a pop-out)
     }
+
+    /// <summary>Closes the projector and the pop-out (application shutdown).</summary>
+    public void CloseAllOutputs()
+    {
+        _popoutWindow?.Close();
+        _projectorWindow?.Close();
+    }
+
+    /// <summary>
+    /// Brings a freshly opened mirror up to date with the projector: live layers,
+    /// the scene on air (cut straight in, video seeked to the same point) and the
+    /// cued Preview, so its next take matches. Sent to the mirror alone.
+    /// </summary>
+    private void SyncMirrorCanvas(BroadcastWindow mirror)
+    {
+        var state = _stateManager.State;
+        mirror.SendCommand("publish_ticker", new { config = state.LiveTickerConfig, items = state.LiveTickerItems });
+        mirror.SendCommand("configure_live_badge", state.IsLiveIndicatorVisible);
+        mirror.SendCommand("set_volume", ProgramVolume);
+        mirror.SendCommand("set_scene_captions", state.IsSceneCaptionVisible);
+
+        if (!state.IsStandbyActive && BuildSceneData(state.OnAirMedia, state.OnAirGraphic) is { } onAir)
+        {
+            mirror.SendCommand("load_scene", onAir);
+            mirror.SendCommand("take_live", new TakeLiveCommandData { Transition = "cut", TransitionDurationMs = 0 });
+            if (state.OnAirMedia is { IsImage: false }) mirror.SendCommand("seek", PlaybackCurrentTime);
+        }
+        mirror.SendCommand("toggle_standby", state.IsStandbyActive);
+        if (state.LiveGraphic != null) mirror.SendCommand("publish_headline", state.LiveGraphic);
+
+        if (BuildSceneData(state.PreviewMedia, state.PreviewGraphic) is { } cued)
+            mirror.SendCommand("load_scene", cued);
+    }
+
+    private LoadSceneData? BuildSceneData(MediaItem? media, HeadlineDraft? graphic)
+    {
+        if (media != null) return MediaSceneData(media);
+        if (graphic != null) return new LoadSceneData { Type = "graphic", Title = graphic.Title, Graphic = graphic };
+        return null;
+    }
+
+    private LoadSceneData MediaSceneData(MediaItem media) => new()
+    {
+        Type = media.IsImage ? "image" : "video",
+        MediaUrl = $"{_server.BaseUrl}media/{media.Id}",
+        MediaId = media.Id,
+        Title = media.Title,
+        Transition = TransitionConfig.ToCommandName(media.AssignedTransition),
+        TransitionDurationMs = TransitionConfig.GetDurationMs(media.AssignedTransition),
+        AutoPlay = true,
+        CaptionName = media.CaptionName,
+        CaptionTitle = media.CaptionTitle
+    };
 
     /// <summary>
     /// Re-sends the current Preview content to a freshly opened broadcast canvas.
@@ -2328,9 +2477,11 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Every command goes to the projector and to the pop-out, so both show the same programme.</summary>
     private void SendCanvasCommand(string command, object? data = null)
     {
-        _broadcastWindow?.SendCommand(command, data);
+        _projectorWindow?.SendCommand(command, data);
+        _popoutWindow?.SendCommand(command, data);
     }
 
     #endregion

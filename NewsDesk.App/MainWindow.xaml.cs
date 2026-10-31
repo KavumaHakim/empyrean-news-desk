@@ -396,7 +396,7 @@ public partial class MainWindow : Window
             }
         }
 
-        _viewModel.CloseBroadcastCommand.Execute(null);
+        _viewModel.CloseAllOutputs();
         _dashboardMonitorTimer.Stop();
         _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
         _server.Dispose();

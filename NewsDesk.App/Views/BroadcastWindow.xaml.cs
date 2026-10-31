@@ -43,12 +43,31 @@ public partial class BroadcastWindow : Window
 
     public bool IsCanvasReady => _isInitialized;
 
-    public BroadcastWindow(string serverBaseUrl, DisplayInfo? targetDisplay = null)
+    /// <summary>
+    /// A resizable test-run window on the operator screen rather than the projector output.
+    /// </summary>
+    public bool IsPopout { get; }
+
+    private bool _isMuted;
+    /// <summary>Silences every sound on this canvas (used while it only mirrors the projector).</summary>
+    public bool IsMuted
+    {
+        get => _isMuted;
+        set
+        {
+            _isMuted = value;
+            if (WebViewBroadcast.CoreWebView2 != null) WebViewBroadcast.CoreWebView2.IsMuted = value;
+        }
+    }
+
+    public BroadcastWindow(string serverBaseUrl, DisplayInfo? targetDisplay = null, bool isPopout = false)
     {
         InitializeComponent();
         _serverBaseUrl = serverBaseUrl;
+        IsPopout = isPopout;
 
-        ApplyDisplayPlacement(targetDisplay);
+        if (isPopout) ApplyPopoutPlacement();
+        else ApplyDisplayPlacement(targetDisplay);
         Loaded += OnLoaded;
 
         // WebView2 surfaces accelerator keys (Esc, F-keys) as WPF key events;
@@ -61,6 +80,22 @@ public partial class BroadcastWindow : Window
                 if (!e.IsRepeat) ShortcutKeyPressed?.Invoke(this, e.Key);
             }
         };
+    }
+
+    /// <summary>
+    /// Ordinary framed window on the operator screen: movable, resizable, never topmost.
+    /// </summary>
+    private void ApplyPopoutPlacement()
+    {
+        IsOnOperatorScreen = true;
+        WindowStyle = WindowStyle.SingleBorderWindow;
+        ResizeMode = ResizeMode.CanResize;
+        ShowInTaskbar = true;
+        Topmost = false;
+        Cursor = Cursors.Arrow;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        Width = 960;
+        Height = 540;
     }
 
     public void ApplyDisplayPlacement(DisplayInfo? targetDisplay)
@@ -101,6 +136,7 @@ public partial class BroadcastWindow : Window
             var options = new CoreWebView2EnvironmentOptions("--autoplay-policy=no-user-gesture-required");
             var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
             await WebViewBroadcast.EnsureCoreWebView2Async(env);
+            WebViewBroadcast.CoreWebView2.IsMuted = _isMuted;
 
             WebViewBroadcast.CoreWebView2.Settings.AreDevToolsEnabled = false;
             WebViewBroadcast.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
