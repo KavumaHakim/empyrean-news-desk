@@ -45,6 +45,28 @@ public class HeadlineSequenceItem : INotifyPropertyChanged
     /// <summary>Whether this story is part of the headlines segment.</summary>
     public bool InHeadlines { get => _inHeadlines; set => Set(ref _inHeadlines, value); }
 
+    private string _location = string.Empty;
+    /// <summary>Place tag on the story's lower third (e.g. "MAIN HALL").</summary>
+    public string Location { get => _location; set => Set(ref _location, value); }
+
+    private bool _isBreaking;
+    /// <summary>Lower third in the red breaking-news style.</summary>
+    public bool IsBreaking { get => _isBreaking; set => Set(ref _isBreaking, value); }
+
+    private string _speakersText = string.Empty;
+    /// <summary>
+    /// People who speak in this story, one per line as "Name | title". Each can be
+    /// switched onto the lower third while the story is on air.
+    /// </summary>
+    public string SpeakersText
+    {
+        get => _speakersText;
+        set { if (Set(ref _speakersText, value)) Raise(nameof(Speakers)); }
+    }
+
+    public List<StorySpeaker> Speakers =>
+        HeadlineListText.Parse(SpeakersText).Select(s => new StorySpeaker(s.Title, s.Caption)).ToList();
+
     /// <summary>Other videos/pictures for this story: replace the shot, voice-over, or a speaker window.</summary>
     public ObservableCollection<MediaItem> ExtraMedia { get; } = [];
 
@@ -98,4 +120,10 @@ public class HeadlineSequenceItem : INotifyPropertyChanged
     }
 
     private void Raise(string? name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
+/// <summary>A person in a story, shown on its lower third as "name • title".</summary>
+public record StorySpeaker(string Name, string Title)
+{
+    public string Label => string.IsNullOrWhiteSpace(Title) ? Name : $"{Name} — {Title}";
 }

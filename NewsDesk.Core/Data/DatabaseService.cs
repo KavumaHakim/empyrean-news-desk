@@ -142,7 +142,10 @@ public class DatabaseService : IDisposable
         // Headline entries became rundown stories: headlines-segment flag + extra media
         AddMissingColumns(conn, "HeadlineSequence",
             ("InHeadlines", "INTEGER NOT NULL DEFAULT 1"),
-            ("ExtraMediaIds", "TEXT NOT NULL DEFAULT ''"));
+            ("ExtraMediaIds", "TEXT NOT NULL DEFAULT ''"),
+            ("Location", "TEXT NOT NULL DEFAULT ''"),
+            ("IsBreaking", "INTEGER NOT NULL DEFAULT 0"),
+            ("SpeakersText", "TEXT NOT NULL DEFAULT ''"));
     }
 
     private static void AddMissingColumns(SqliteConnection conn, string table, params (string Name, string Definition)[] columns)
@@ -715,7 +718,8 @@ public class DatabaseService : IDisposable
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
-            SELECT Id, OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId, InHeadlines, ExtraMediaIds
+            SELECT Id, OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId, InHeadlines, ExtraMediaIds,
+                   Location, IsBreaking, SpeakersText
             FROM HeadlineSequence
             ORDER BY OrderIndex ASC, Id ASC;
         ";
@@ -733,7 +737,10 @@ public class DatabaseService : IDisposable
                 DurationSeconds = reader.GetInt32(5),
                 MediaItemId = reader.IsDBNull(6) ? null : reader.GetInt32(6),
                 InHeadlines = reader.IsDBNull(7) || reader.GetInt32(7) != 0,
-                ExtraMediaIds = ParseIds(reader.IsDBNull(8) ? "" : reader.GetString(8))
+                ExtraMediaIds = ParseIds(reader.IsDBNull(8) ? "" : reader.GetString(8)),
+                Location = reader.IsDBNull(9) ? "" : reader.GetString(9),
+                IsBreaking = !reader.IsDBNull(10) && reader.GetInt32(10) != 0,
+                SpeakersText = reader.IsDBNull(11) ? "" : reader.GetString(11)
             });
         }
         return list;
@@ -755,7 +762,10 @@ public class DatabaseService : IDisposable
                     DurationSeconds = $duration,
                     MediaItemId = $mediaId,
                     InHeadlines = $inHeadlines,
-                    ExtraMediaIds = $extraIds
+                    ExtraMediaIds = $extraIds,
+                    Location = $location,
+                    IsBreaking = $isBreaking,
+                    SpeakersText = $speakers
                 WHERE Id = $id;
             ";
             cmd.Parameters.AddWithValue("$id", item.Id);
@@ -763,8 +773,8 @@ public class DatabaseService : IDisposable
         else
         {
             cmd.CommandText = @"
-                INSERT INTO HeadlineSequence (OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId, InHeadlines, ExtraMediaIds)
-                VALUES ($order, $title, $subtitle, $category, $duration, $mediaId, $inHeadlines, $extraIds);
+                INSERT INTO HeadlineSequence (OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId, InHeadlines, ExtraMediaIds, Location, IsBreaking, SpeakersText)
+                VALUES ($order, $title, $subtitle, $category, $duration, $mediaId, $inHeadlines, $extraIds, $location, $isBreaking, $speakers);
                 SELECT last_insert_rowid();
             ";
         }
@@ -781,6 +791,10 @@ public class DatabaseService : IDisposable
             ? item.ExtraMedia.Select(m => m.Id)
             : item.ExtraMediaIds;
         cmd.Parameters.AddWithValue("$extraIds", string.Join(",", extraIds));
+        cmd.Parameters.AddWithValue("$location", item.Location ?? string.Empty);
+        cmd.Parameters.AddWithValue("$isBreaking", item.IsBreaking ? 1 : 0);
+        cmd.Parameters.AddWithValue("$speakers", item.SpeakersText ?? string.Empty);
+
 
         if (item.Id > 0)
         {

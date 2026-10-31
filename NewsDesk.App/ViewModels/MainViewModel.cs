@@ -546,6 +546,12 @@ public class MainViewModel : ViewModelBase
     // The lower third a story put up (so a story switch never clears the operator's own graphic)
     private HeadlineDraft? _storyLowerThird;
 
+    // The speaker currently named on the story's lower third (null = headline only)
+    private StorySpeaker? _storySpeaker;
+
+    public RelayCommand ShowStorySpeakerCommand { get; }
+    public RelayCommand StoryHeadlineOnlyCommand { get; }
+
     private bool _storyLowerThirdAuto = true;
     /// <summary>Taking a story puts its headline and summary up as the lower third.</summary>
     public bool StoryLowerThirdAuto
@@ -656,6 +662,18 @@ public class MainViewModel : ViewModelBase
         Window1StoryMediaCommand = new RelayCommand(param => { if (param is MediaItem m) ShowStoryMediaInWindow(1, m); });
         Window2StoryMediaCommand = new RelayCommand(param => { if (param is MediaItem m) ShowStoryMediaInWindow(2, m); });
         AddStoryExtraMediaCommand = new RelayCommand(AddStoryExtraMedia, () => SelectedHeadlineItem != null && SelectedMedia != null);
+        ShowStorySpeakerCommand = new RelayCommand(param =>
+        {
+            if (param is not StorySpeaker speaker || SelectedHeadlineItem is not { } story) return;
+            PublishStoryLowerThird(story, speaker);
+            StatusNotification = $"LOWER THIRD: {speaker.Label} — {story.ListTitle}";
+        });
+        StoryHeadlineOnlyCommand = new RelayCommand(() =>
+        {
+            if (SelectedHeadlineItem is not { } story) return;
+            PublishStoryLowerThird(story);
+            StatusNotification = $"LOWER THIRD: headline only — {story.ListTitle}";
+        }, () => SelectedHeadlineItem != null);
         RemoveStoryExtraMediaCommand = new RelayCommand(param =>
         {
             if (param is not MediaItem m || SelectedHeadlineItem == null) return;
@@ -1408,15 +1426,24 @@ public class MainViewModel : ViewModelBase
             ClearStoryLowerThird();
     }
 
-    private void PublishStoryLowerThird(HeadlineSequenceItem story)
+    /// <summary>
+    /// The story's lower third: headline + summary, location and breaking style,
+    /// plus the speaker currently chosen for it ("name • title"), if any.
+    /// </summary>
+    private void PublishStoryLowerThird(HeadlineSequenceItem story, StorySpeaker? speaker = null)
     {
+        _storySpeaker = speaker;
         var lowerThird = new HeadlineDraft
         {
             Title = story.Title,
             Subtitle = story.Subtitle,
             Category = string.IsNullOrWhiteSpace(story.Category) ? "NEWS" : story.Category,
-            TemplateType = GraphicsTemplateType.MainHeadline,
-            BackgroundStyle = "navy"
+            Location = story.Location,
+            ReporterName = speaker?.Name ?? string.Empty,
+            ReporterTitle = speaker?.Title ?? string.Empty,
+            IsBreaking = story.IsBreaking,
+            TemplateType = speaker != null ? GraphicsTemplateType.IntervieweeLowerThird : GraphicsTemplateType.MainHeadline,
+            BackgroundStyle = story.IsBreaking ? "breaking" : "navy"
         };
         _storyLowerThird = lowerThird;
         _stateManager.PublishLiveGraphic(lowerThird);
@@ -1431,6 +1458,7 @@ public class MainViewModel : ViewModelBase
             SendCanvasCommand("clear_headline");
         }
         _storyLowerThird = null;
+        _storySpeaker = null;
     }
 
     /// <summary>The story after the one on air, or null at the end of the rundown.</summary>
@@ -1752,18 +1780,27 @@ public class MainViewModel : ViewModelBase
             or nameof(HeadlineSequenceItem.Category)
             or nameof(HeadlineSequenceItem.DurationSeconds)
             or nameof(HeadlineSequenceItem.MediaItem)
-            or nameof(HeadlineSequenceItem.InHeadlines))
+            or nameof(HeadlineSequenceItem.InHeadlines)
+            or nameof(HeadlineSequenceItem.Location)
+            or nameof(HeadlineSequenceItem.IsBreaking)
+            or nameof(HeadlineSequenceItem.SpeakersText))
         {
             _db.SaveHeadlineSequenceItem(item);
         }
 
         // Write once, update on air: editing the story that is up refreshes its lower third
         if (ReferenceEquals(item, OnAirStory) && _storyLowerThird != null
-            && e.PropertyName is nameof(HeadlineSequenceItem.Title) or nameof(HeadlineSequenceItem.Subtitle) or nameof(HeadlineSequenceItem.Category)
+            && e.PropertyName is nameof(HeadlineSequenceItem.Title) or nameof(HeadlineSequenceItem.Subtitle)
+                or nameof(HeadlineSequenceItem.Category) or nameof(HeadlineSequenceItem.Location)
+                or nameof(HeadlineSequenceItem.IsBreaking) or nameof(HeadlineSequenceItem.SpeakersText)
             && ReferenceEquals(_stateManager.State.LiveGraphic, _storyLowerThird))
         {
-            PublishStoryLowerThird(item);
+            // Keep the speaker on screen if they are still listed (their title may have been corrected)
+            var speaker = _storySpeaker == null ? null
+                : item.Speakers.FirstOrDefault(s => s.Name == _storySpeaker.Name);
+            PublishStoryLowerThird(item, speaker);
         }
+
     }
 
     private void UseSelectedMediaForHeadline()

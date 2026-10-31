@@ -57,6 +57,28 @@ public class StoryTests : IDisposable
     }
 
     [Fact]
+    public void Story_SavesLocationBreakingAndSpeakers()
+    {
+        var story = new HeadlineSequenceItem
+        {
+            Title = "PRIZE GIVING",
+            Location = "Main Hall",
+            IsBreaking = true,
+            SpeakersText = "Amina Okello | Head Prefect\nMr. Kato | Class Teacher\n\nGuest Speaker"
+        };
+        _db.SaveHeadlineSequenceItem(story);
+
+        var loaded = _db.GetHeadlineSequence().Single(s => s.Id == story.Id);
+        Assert.Equal("Main Hall", loaded.Location);
+        Assert.True(loaded.IsBreaking);
+        Assert.Equal(
+            [new StorySpeaker("Amina Okello", "Head Prefect"), new StorySpeaker("Mr. Kato", "Class Teacher"), new StorySpeaker("Guest Speaker", "")],
+            loaded.Speakers);
+        Assert.Equal("Amina Okello — Head Prefect", loaded.Speakers[0].Label);
+        Assert.Equal("Guest Speaker", loaded.Speakers[2].Label);
+    }
+
+    [Fact]
     public void ListTitle_FallsBackToMediaTitle_UntilAHeadlineIsWritten()
     {
         var story = new HeadlineSequenceItem { MediaItem = new MediaItem { Title = "CANDIDATES" } };
