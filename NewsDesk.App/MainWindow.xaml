@@ -1133,6 +1133,13 @@
                             </Grid.ColumnDefinitions>
                             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
                                 <StackPanel>
+                                    <!-- Shown while the editor holds the lower third that is on air -->
+                                    <Border Background="#3A050C" BorderBrush="{StaticResource AccentRed}" BorderThickness="1" Padding="8,3" Margin="0,0,0,6"
+                                            Visibility="{Binding IsEditingOnAir, Converter={StaticResource BoolVis}}">
+                                        <TextBlock FontSize="11" Foreground="#FF9AA5" TextWrapping="Wrap">
+                                            <Run Text="● ON AIR" FontWeight="Bold" Foreground="#FF6B6B"/><Run Text="  — this is the lower third on screen. Edit it, then press UPDATE LIVE."/>
+                                        </TextBlock>
+                                    </Border>
                                     <TextBlock Text="Headline" Style="{StaticResource FieldLabel}"/>
                                     <TextBox Text="{Binding EditingHeadline.Title, UpdateSourceTrigger=PropertyChanged}" Padding="6,3" Margin="0,0,0,6"/>
                                     <TextBlock Text="Summary" Style="{StaticResource FieldLabel}"/>

@@ -209,7 +209,24 @@ public class MainViewModel : ViewModelBase
     public HeadlineDraft EditingHeadline
     {
         get => _editingHeadline;
-        set => SetProperty(ref _editingHeadline, value);
+        set
+        {
+            if (SetProperty(ref _editingHeadline, value)) OnPropertyChanged(nameof(IsEditingOnAir));
+        }
+    }
+
+    /// <summary>True when the Graphics editor holds the lower third that is on air (UPDATE LIVE changes it).</summary>
+    public bool IsEditingOnAir => _editingHeadline != null && ReferenceEquals(_editingHeadline, _stateManager.State.LiveGraphic);
+
+    /// <summary>
+    /// Puts a lower third on air and loads it into the Graphics editor, so a quick
+    /// fix is: edit it there, press UPDATE LIVE.
+    /// </summary>
+    private void GoLiveLowerThird(HeadlineDraft lowerThird)
+    {
+        _stateManager.PublishLiveGraphic(lowerThird);
+        SendCanvasCommand("publish_headline", lowerThird);
+        EditingHeadline = lowerThird;
     }
 
     // Ticker Studio draft
@@ -973,6 +990,8 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsSceneCaptionVisible));
         OnPropertyChanged(nameof(IsTickerVisible));
         OnPropertyChanged(nameof(IsLowerThirdLive));
+        OnPropertyChanged(nameof(IsEditingOnAir));
+
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -1646,14 +1665,48 @@ public class MainViewModel : ViewModelBase
         {
             if (story.Id > 0) _db.SaveHeadlineSequenceItem(story);
 
-            // Editing the lower third of the shot that is on air updates it straight away
+            // Editing the lower third of the shot that is on air updates it once typing pauses
             if (ReferenceEquals(shot, _onAirStoryMedia) && _storyLowerThird != null
                 && ReferenceEquals(_stateManager.State.LiveGraphic, _storyLowerThird))
             {
-                PublishStoryLowerThird(story, _storySpeaker);
+                ScheduleLowerThirdRefresh(story);
             }
         };
     }
+
+    // Live lower-third edits wait for a pause in typing, so the graphic isn't re-sent
+    // (and re-animated) on every key press
+    private DispatcherTimer? _lowerThirdRefreshTimer;
+    private HeadlineSequenceItem? _lowerThirdRefreshStory;
+    private static readonly TimeSpan LowerThirdRefreshDelay = TimeSpan.FromSeconds(1.2);
+
+    private void ScheduleLowerThirdRefresh(HeadlineSequenceItem story)
+    {
+        _lowerThirdRefreshStory = story;
+        if (_lowerThirdRefreshTimer == null)
+        {
+            _lowerThirdRefreshTimer = new DispatcherTimer(DispatcherPriority.Normal, _dispatcher) { Interval = LowerThirdRefreshDelay };
+            _lowerThirdRefreshTimer.Tick += (s, e) =>
+            {
+                _lowerThirdRefreshTimer.Stop();
+                var pending = _lowerThirdRefreshStory;
+                _lowerThirdRefreshStory = null;
+
+                // Only if that story's lower third is still the one on screen
+                if (pending == null || !ReferenceEquals(pending, OnAirStory) || _storyLowerThird == null
+                    || !ReferenceEquals(_stateManager.State.LiveGraphic, _storyLowerThird)) return;
+
+                // Keep the speaker on screen if they are still listed (their title may have been corrected)
+                var speaker = _storySpeaker == null ? null
+                    : pending.Speakers.FirstOrDefault(sp => sp.Name == _storySpeaker.Name);
+                PublishStoryLowerThird(pending, speaker);
+                StatusNotification = $"Lower third updated on air: {pending.ListTitle}";
+            };
+        }
+        _lowerThirdRefreshTimer.Stop();   // each key press restarts the wait
+        _lowerThirdRefreshTimer.Start();
+    }
+
 
     /// <summary>
     /// One-time move of the old media-only rundown into stories, so nothing the
@@ -1771,8 +1824,7 @@ public class MainViewModel : ViewModelBase
             BackgroundStyle = story.IsBreaking ? "breaking" : "navy"
         };
         _storyLowerThird = lowerThird;
-        _stateManager.PublishLiveGraphic(lowerThird);
-        SendCanvasCommand("publish_headline", lowerThird);
+        GoLiveLowerThird(lowerThird);
     }
 
     private void ClearStoryLowerThird()
@@ -2107,10 +2159,7 @@ public class MainViewModel : ViewModelBase
                 or nameof(HeadlineSequenceItem.IsBreaking) or nameof(HeadlineSequenceItem.SpeakersText)
             && ReferenceEquals(_stateManager.State.LiveGraphic, _storyLowerThird))
         {
-            // Keep the speaker on screen if they are still listed (their title may have been corrected)
-            var speaker = _storySpeaker == null ? null
-                : item.Speakers.FirstOrDefault(s => s.Name == _storySpeaker.Name);
-            PublishStoryLowerThird(item, speaker);
+            ScheduleLowerThirdRefresh(item);
         }
 
     }
@@ -2553,9 +2602,8 @@ public class MainViewModel : ViewModelBase
                 BackgroundStyle = "breaking"
             };
 
-            // Update live graphic immediately
-            _stateManager.PublishLiveGraphic(breakingGraphic);
-            SendCanvasCommand("publish_headline", breakingGraphic);
+            // Update live graphic immediately (and into the Graphics editor for quick fixes)
+            GoLiveLowerThird(breakingGraphic);
 
             // Switch ticker into urgent breaking mode
             DraftTickerConfig.IsBreakingStyle = true;
