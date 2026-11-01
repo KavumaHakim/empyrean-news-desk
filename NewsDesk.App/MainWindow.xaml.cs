@@ -25,6 +25,11 @@ public partial class MainWindow : Window
     private bool _isPreviewScrubbing;
     private bool _isPreviewPlaying;
     private bool _programMonitorHasStarted;
+
+    // What each monitor has loaded: the view model re-announces Preview/OnAir on every
+    // state change (a take, a lower third, a layer…); only a different file reloads
+    private string? _previewLoadedPath;
+    private string? _programLoadedPath;
     private double _lastProgramMonitorTime;
 
     public MainWindow()
@@ -130,6 +135,7 @@ public partial class MainWindow : Window
     private void PreviewVideoMonitor_MediaOpened(object sender, RoutedEventArgs e)
     {
         _isPreviewPlaying = true;
+        PreviewPlayButton.Content = "PAUSE";
 
         // Some files (damaged, or a codec Windows only half-understands) open without a
         // known length yet. Asking for it then throws, so use it only when it is there;
@@ -144,6 +150,7 @@ public partial class MainWindow : Window
     private void PreviewVideoMonitor_MediaEnded(object sender, RoutedEventArgs e)
     {
         _isPreviewPlaying = false;
+        PreviewPlayButton.Content = "PLAY";
         PreviewTimeDisplay.Text = FormatTime(PreviewTimelineSlider.Maximum, PreviewTimelineSlider.Maximum);
     }
 
@@ -165,7 +172,13 @@ public partial class MainWindow : Window
         }
         else if (e.PropertyName == nameof(MainViewModel.OnAirMedia))
         {
+            // Only a real change of on-air media is a take: then stop the Preview copy so
+            // the same clip isn't playing (and decoding) twice next to Program
+            var path = _viewModel.OnAirMedia?.FilePath;
+            bool tookNewMedia = !string.Equals(path, _programLoadedPath, StringComparison.OrdinalIgnoreCase);
             LoadProgramMonitor();
+            if (tookNewMedia) PausePreviewMonitor();
+
         }
         else if (e.PropertyName == nameof(MainViewModel.PlaybackCurrentTime))
         {
@@ -190,12 +203,15 @@ public partial class MainWindow : Window
     private void LoadPreviewMonitor()
     {
         var path = _viewModel.PreviewMedia?.FilePath;
+        if (string.Equals(path, _previewLoadedPath, StringComparison.OrdinalIgnoreCase)) return;
+        _previewLoadedPath = path;
         try
         {
             PreviewVideoMonitor.Stop();
             PreviewVideoMonitor.Source = null;
             ShowStill(PreviewImageMonitor, null);
             _isPreviewPlaying = false;
+            PreviewPlayButton.Content = "PLAY";
             PreviewTimelineSlider.Value = 0;
             PreviewTimelineSlider.Maximum = 1;
             PreviewTimeDisplay.Text = "00:00 / 00:00";
@@ -226,6 +242,8 @@ public partial class MainWindow : Window
     private void LoadProgramMonitor()
     {
         var path = _viewModel.OnAirMedia?.FilePath;
+        if (string.Equals(path, _programLoadedPath, StringComparison.OrdinalIgnoreCase)) return;
+        _programLoadedPath = path;
         try
         {
             ProgramVideoMonitor.Stop();
@@ -344,16 +362,22 @@ public partial class MainWindow : Window
         if (PreviewVideoMonitor.Source == null) return;
         if (_isPreviewPlaying)
         {
-            PreviewVideoMonitor.Pause();
-            _isPreviewPlaying = false;
-            ((Button)sender).Content = "PLAY";
+            PausePreviewMonitor();
         }
         else
         {
             PreviewVideoMonitor.Play();
             _isPreviewPlaying = true;
-            ((Button)sender).Content = "PAUSE";
+            PreviewPlayButton.Content = "PAUSE";
         }
+    }
+
+    private void PausePreviewMonitor()
+    {
+        if (PreviewVideoMonitor.Source == null) return;
+        PreviewVideoMonitor.Pause();
+        _isPreviewPlaying = false;
+        PreviewPlayButton.Content = "PLAY";
     }
 
     private void PreviewReplay_Click(object sender, RoutedEventArgs e)

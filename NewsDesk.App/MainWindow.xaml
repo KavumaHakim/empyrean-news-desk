@@ -655,7 +655,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="PLAY" Click="PreviewPlayPause_Click" Style="{StaticResource SmallButton}" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                        <Button x:Name="PreviewPlayButton" Grid.Column="0" Content="PLAY" Click="PreviewPlayPause_Click" Style="{StaticResource SmallButton}" Margin="0,0,4,0" VerticalAlignment="Center"/>
                         <Button Grid.Column="1" Content="↺" Click="PreviewReplay_Click" Style="{StaticResource SmallButton}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                         <Slider x:Name="PreviewTimelineSlider" Grid.Column="2" Minimum="0" Maximum="1" Value="0" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <TextBlock x:Name="PreviewTimeDisplay" Grid.Column="3" Text="00:00 / 00:00" Foreground="{StaticResource TextMid}" FontFamily="Consolas" FontSize="11.5" VerticalAlignment="Center"/>
