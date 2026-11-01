@@ -9,14 +9,18 @@ public class DatabaseService : IDisposable
     private readonly string _connectionString;
     private readonly string _dbPath;
 
+    /// <summary>Where the operator's show lives when no other path is given.</summary>
+    public static string DefaultPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NewsDesk", "newsdesk.db");
+
+    public string DatabasePath => _dbPath;
+
     public DatabaseService(string? customDbPath = null)
     {
         if (string.IsNullOrEmpty(customDbPath))
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var dir = Path.Combine(appData, "NewsDesk");
-            Directory.CreateDirectory(dir);
-            _dbPath = Path.Combine(dir, "newsdesk.db");
+            _dbPath = DefaultPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(_dbPath)!);
         }
         else
         {
@@ -823,12 +827,18 @@ public class DatabaseService : IDisposable
         Directory.CreateDirectory(dir);
         var target = Path.Combine(dir, $"newsdesk_{label}_{DateTime.Now:yyyy-MM-dd_HHmmss}.db");
 
+        SaveCopyTo(target);
+        return target;
+    }
+
+    /// <summary>Writes a complete, consistent copy of the database to <paramref name="target"/>.</summary>
+    public void SaveCopyTo(string target)
+    {
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "VACUUM INTO $target;";
         cmd.Parameters.AddWithValue("$target", target);
         cmd.ExecuteNonQuery();
-        return target;
     }
 
     private static Dictionary<int, StoryMediaText> ParseLowerThirds(string json)

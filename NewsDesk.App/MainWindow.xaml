@@ -1751,6 +1751,14 @@
                                 </StackPanel>
                                 <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"
                                            Text="Where all show sound plays — clips, voice-over, intro, speaker windows and sound pads. Switches straight away, even mid-show, and is remembered. The list fills in once the projector is open; press REFRESH after plugging in HDMI. The microphone is opened for an instant only to read device names — nothing is recorded."/>
+
+                                <TextBlock Text="MOVE THE SHOW TO ANOTHER COMPUTER" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextHi}" Margin="0,14,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="SAVE SHOW TO FILE…" Command="{Binding SaveShowPackageCommand}" Style="{StaticResource SmallPrimary}"/>
+                                    <Button Content="OPEN SHOW FILE…" Command="{Binding OpenShowPackageCommand}" Style="{StaticResource SmallButton}" Margin="6,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"
+                                           Text="SAVE puts everything in one .newsdesk file: stories, titles, captions, lower thirds, ticker, all settings, and every video, picture and sound they use (it can be several GB — save it to a USB drive). On the other computer, install NEWS DESK, press OPEN and pick a folder for the media: the show comes back exactly as it was. The show it replaces is kept in Backups."/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="KEYBOARD" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextHi}" Margin="0,0,0,6"/>

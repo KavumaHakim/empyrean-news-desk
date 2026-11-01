@@ -662,6 +662,16 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    // Moving the whole show to another computer (one .newsdesk file)
+    public RelayCommand SaveShowPackageCommand { get; }
+    public RelayCommand OpenShowPackageCommand { get; }
+    private bool _isShowPackageBusy;
+    public bool IsShowPackageBusy
+    {
+        get => _isShowPackageBusy;
+        private set => SetProperty(ref _isShowPackageBusy, value);
+    }
+
     public string AudioOutputName => AudioOutputs.FirstOrDefault(o => o.Id == _selectedAudioOutputId)?.Label ?? WindowsDefaultOutput.Label;
 
     public RelayCommand ShowStorySpeakerCommand { get; }
@@ -795,6 +805,8 @@ public class MainViewModel : ViewModelBase
         });
         ToggleBreakingTakeoverCommand = new RelayCommand(ToggleBreakingTakeover);
         RefreshAudioOutputsCommand = new RelayCommand(RefreshAudioOutputs);
+        SaveShowPackageCommand = new RelayCommand(SaveShowPackage, () => !IsShowPackageBusy);
+        OpenShowPackageCommand = new RelayCommand(OpenShowPackage, () => !IsShowPackageBusy);
         SwitchAudioOutputCommand = new RelayCommand(SwitchAudioOutput);
 
         StoryHeadlineOnlyCommand = new RelayCommand(() =>
@@ -3476,6 +3488,100 @@ public class MainViewModel : ViewModelBase
             StatusNotification = $"Transition complete. Next story '{next.ListTitle}' is cued — review and TAKE LIVE when ready.";
         }
     }
+
+    #region Show package (move to another computer)
+
+    private async void SaveShowPackage()
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Save the whole show to one file",
+            Filter = $"NEWS DESK show (*{ShowPackage.Extension})|*{ShowPackage.Extension}",
+            FileName = $"EMPYREAN NEWS show {DateTime.Now:yyyy-MM-dd}{ShowPackage.Extension}"
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        IsShowPackageBusy = true;
+        try
+        {
+            var progress = new Progress<string>(text => StatusNotification = $"SAVING SHOW: {text}");
+            var result = await Task.Run(() => ShowPackage.Export(_db, dialog.FileName, progress));
+            StatusNotification = $"SHOW SAVED: {result.FileCount} files ({result.TotalBytes / (1024.0 * 1024 * 1024):0.00} GB) in {Path.GetFileName(dialog.FileName)}."
+                + (result.MissingFiles.Count > 0 ? $" {result.MissingFiles.Count} file(s) were already missing on this computer and are not in it." : "");
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write("Save show", ex);
+            StatusNotification = $"SAVE SHOW FAILED: {ex.Message} (is there enough space on that drive?)";
+        }
+        finally
+        {
+            IsShowPackageBusy = false;
+        }
+    }
+
+    private async void OpenShowPackage()
+    {
+        var open = new OpenFileDialog
+        {
+            Title = "Open a show saved on another computer",
+            Filter = $"NEWS DESK show (*{ShowPackage.Extension})|*{ShowPackage.Extension}"
+        };
+        if (open.ShowDialog() != true) return;
+
+        var folderDialog = new OpenFolderDialog
+        {
+            Title = "Where should the show's videos, pictures and sounds be kept on this computer?",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        };
+        if (folderDialog.ShowDialog() != true) return;
+        var mediaFolder = Path.Combine(folderDialog.FolderName, Path.GetFileNameWithoutExtension(open.FileName));
+
+        if (MessageBox.Show(
+                $"Open '{Path.GetFileName(open.FileName)}'?\n\nIt REPLACES the stories, media list and settings on this computer. " +
+                $"The current show is kept in Backups first, so nothing is lost.\n\nMedia will be copied to:\n{mediaFolder}",
+                "Open show", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+
+        IsShowPackageBusy = true;
+        try
+        {
+            var progress = new Progress<string>(text => StatusNotification = $"OPENING SHOW: {text}");
+            var dbPath = _db.DatabasePath;
+            var result = await Task.Run(() => ShowPackage.Import(open.FileName, mediaFolder, dbPath, progress));
+
+            var missing = result.MissingFiles.Count > 0
+                ? $"\n\n{result.MissingFiles.Count} file(s) were missing on the computer that saved it and need adding again."
+                : "";
+            if (MessageBox.Show(
+                    $"The show is ready ({result.FileCount} media files copied).{missing}\n\nNEWS DESK restarts to open it. Restart now?",
+                    "Open show", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+            {
+                RestartApp();
+            }
+            else
+            {
+                StatusNotification = "SHOW READY: it opens the next time NEWS DESK starts.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write("Open show", ex);
+            StatusNotification = $"OPEN SHOW FAILED: {ex.Message} Your current show is unchanged.";
+        }
+        finally
+        {
+            IsShowPackageBusy = false;
+        }
+    }
+
+    private static void RestartApp()
+    {
+        if (Environment.ProcessPath is { } exe)
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = true });
+        Application.Current.Shutdown();
+    }
+
+    #endregion
 
     #region Sound output
 

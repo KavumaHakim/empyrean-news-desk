@@ -41,6 +41,10 @@ public partial class MainWindow : Window
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
         var assetsDir = Path.Combine(baseDir, "BroadcastCanvas");
 
+        // A show opened from another computer replaces this one now, before it is in use
+        // (the show it replaces is kept in Backups)
+        try { NewsDesk.Core.Services.ShowPackage.ApplyPendingImport(DatabaseService.DefaultPath); }
+        catch (Exception ex) { ErrorLog.Write("Open show", ex); }
         _db = new DatabaseService();
         _server = new MediaHttpServer(assetsDir, 8089);
         try
