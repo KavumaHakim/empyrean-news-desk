@@ -726,6 +726,7 @@
                     <!-- Dashboard mirror of the projector; the canvas stays authoritative -->
                     <Grid Grid.Row="1" Background="#02050A" ClipToBounds="True">
                         <MediaElement x:Name="ProgramVideoMonitor"
+                                      ScrubbingEnabled="True"
                                       LoadedBehavior="Manual"
                                       UnloadedBehavior="Stop"
                                       Volume="0"
@@ -780,6 +781,13 @@
                                 <TextBlock Text="STANDBY SLATE ON AIR" Foreground="#E3B93E" FontFamily="{StaticResource FontHead}" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center"/>
                                 <TextBlock Text="Cue a source in Preview, then TAKE (F5)" Foreground="{StaticResource TextMuted}" FontSize="12.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                             </StackPanel>
+                        </Border>
+
+                        <!-- "Projector only" monitor setting: this is a still, the clip plays on the projector -->
+                        <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,0,8" Padding="8,2"
+                                Background="#D9081020" BorderBrush="{StaticResource BorderLine}" BorderThickness="1" IsHitTestVisible="False"
+                                Visibility="{Binding IsProgramMonitorStill, Converter={StaticResource BoolVis}}">
+                            <TextBlock Text="STILL · clip plays on the projector" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMid}"/>
                         </Border>
 
                         <!-- Live layer chips -->
@@ -1717,6 +1725,12 @@
                                 <TextBlock TextWrapping="Wrap" FontSize="12.5" LineHeight="19" Foreground="{StaticResource TextMid}"
                                            Text="1. Connect the projector by HDMI.&#x0a;2. Press Win + P → Extend.&#x0a;3. Pick it in OUTPUT (top bar) and press LAUNCH PROJECTOR.&#x0a;4. The audience screen shows no controls or cursor."/>
                                 <Button Content="REFRESH MONITORS" Command="{Binding RefreshDisplaysCommand}" Style="{StaticResource SmallButton}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+
+                                <TextBlock Text="MONITOR VIDEO" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextHi}" Margin="0,14,0,4"/>
+                                <ComboBox ItemsSource="{Binding MonitorVideoModes}" SelectedValue="{Binding MonitorVideoMode}"
+                                          SelectedValuePath="Key" DisplayMemberPath="Value" Padding="6,3" HorizontalAlignment="Left" MinWidth="280"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"
+                                           Text="Each monitor playing a clip decodes it again. Lighter settings show a still frame instead, so the laptop only plays the clip on the projector (and Program). PLAY on Preview still checks a clip on demand."/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="KEYBOARD" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextHi}" Margin="0,0,0,6"/>

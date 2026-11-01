@@ -30,6 +30,9 @@ public partial class MainWindow : Window
     // state change (a take, a lower third, a layer…); only a different file reloads
     private string? _previewLoadedPath;
     private string? _programLoadedPath;
+
+    // Preview opened on a still frame (monitor setting), not playing
+    private bool _previewOpensPaused;
     private double _lastProgramMonitorTime;
 
     public MainWindow()
@@ -134,8 +137,8 @@ public partial class MainWindow : Window
 
     private void PreviewVideoMonitor_MediaOpened(object sender, RoutedEventArgs e)
     {
-        _isPreviewPlaying = true;
-        PreviewPlayButton.Content = "PAUSE";
+        _isPreviewPlaying = !_previewOpensPaused;
+        PreviewPlayButton.Content = _isPreviewPlaying ? "PAUSE" : "PLAY";
 
         // Some files (damaged, or a codec Windows only half-understands) open without a
         // known length yet. Asking for it then throws, so use it only when it is there;
@@ -166,7 +169,14 @@ public partial class MainWindow : Window
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainViewModel.PreviewMedia))
+        if (e.PropertyName == nameof(MainViewModel.MonitorVideoMode))
+        {
+            // Applied straight away, mid-show: lighter settings stop the extra decoding now
+            if (_viewModel.MonitorVideoMode != "all" && _isPreviewPlaying) PausePreviewMonitor();
+            SyncProgramMonitor(force: true);
+        }
+        else if (e.PropertyName == nameof(MainViewModel.PreviewMedia))
+
         {
             LoadPreviewMonitor();
         }
@@ -231,7 +241,12 @@ public partial class MainWindow : Window
 
             PreviewVideoMonitor.Source = new Uri(Path.GetFullPath(path), UriKind.Absolute);
             PreviewVideoMonitor.Volume = 0;
-            PreviewVideoMonitor.Play();
+
+            // Only "All monitors" plays the cued clip; otherwise it opens on a still
+            // frame (one decode) and PLAY checks it on demand
+            _previewOpensPaused = _viewModel.MonitorVideoMode != "all";
+            if (_previewOpensPaused) PreviewVideoMonitor.Pause();
+            else PreviewVideoMonitor.Play();
         }
         catch (Exception ex)
         {
@@ -261,6 +276,9 @@ public partial class MainWindow : Window
 
             ProgramVideoMonitor.Source = new Uri(Path.GetFullPath(path), UriKind.Absolute);
             ProgramVideoMonitor.Volume = 0;
+
+            // "Projector only": open on a still frame; the projector alone plays the clip
+            if (_viewModel.IsProgramMonitorStill) ProgramVideoMonitor.Pause();
             // Start and seek after MediaOpened. Calling Play/Position while a new
             // source is still opening is unreliable for WPF MediaElement.
         }
@@ -338,6 +356,13 @@ public partial class MainWindow : Window
     private void SyncProgramMonitor(bool force = false)
     {
         if (ProgramVideoMonitor.Source == null || string.IsNullOrWhiteSpace(_viewModel.OnAirMedia?.FilePath)) return;
+
+        // "Projector only": the monitor holds its still and never decodes alongside the projector
+        if (_viewModel.IsProgramMonitorStill)
+        {
+            ProgramVideoMonitor.Pause();
+            return;
+        }
 
         if (_viewModel.IsStandbyActive || !_viewModel.IsPlaying)
         {

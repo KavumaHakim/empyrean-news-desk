@@ -612,6 +612,30 @@ public class MainViewModel : ViewModelBase
     }
     public RelayCommand ToggleBreakingTakeoverCommand { get; }
 
+    // Which dashboard monitors decode video (the projector always does)
+    public List<KeyValuePair<string, string>> MonitorVideoModes { get; } =
+    [
+        new("program", "Program + projector (Preview shows a still)"),
+        new("projector", "Projector only (both monitors show stills)"),
+        new("all", "All monitors play video")
+    ];
+
+    private string _monitorVideoMode = "program";
+    public string MonitorVideoMode
+    {
+        get => _monitorVideoMode;
+        set
+        {
+            if (!SetProperty(ref _monitorVideoMode, value)) return;
+            _db.SetSetting("Monitors_VideoMode", value);
+            OnPropertyChanged(nameof(IsProgramMonitorStill));
+            StatusNotification = $"Monitors: {MonitorVideoModes.First(m => m.Key == value).Value}.";
+        }
+    }
+
+    /// <summary>Program monitor shows a still while the projector plays the clip.</summary>
+    public bool IsProgramMonitorStill => _monitorVideoMode == "projector";
+
     public RelayCommand ShowStorySpeakerCommand { get; }
     public RelayCommand StoryHeadlineOnlyCommand { get; }
 
@@ -899,6 +923,9 @@ public class MainViewModel : ViewModelBase
         // The operator decides what goes on air: no automatic advance or cue unless switched on
         _storyAutoAdvance = bool.TryParse(_db.GetSetting("Stories_AutoAdvance", "False"), out var autoAdvance) && autoAdvance;
         _storyAutoCueNext = bool.TryParse(_db.GetSetting("Stories_AutoCueNext", "False"), out var autoCue) && autoCue;
+        var savedMonitorMode = _db.GetSetting("Monitors_VideoMode", "program");
+        _monitorVideoMode = savedMonitorMode is "projector" or "all" ? savedMonitorMode : "program";
+
 
         // Sound pads
         SoundPads.Clear();

@@ -238,14 +238,9 @@
             standbyVid.src = data.mediaUrl;
             standbyVid.volume = 0; // muted while standing by
             standbyVid.load();
-            if (data.autoPlay) {
-                const startWhenReady = () => {
-                    if (generation !== loadGeneration || loadFailed) return;
-                    standbyVid.play().catch(() => {});
-                };
-                if (standbyVid.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) startWhenReady();
-                else standbyVid.addEventListener('canplay', startWhenReady, { once: true });
-            }
+            // The cued clip waits on its first frame: it is decoded once, when it goes
+            // on air (takeLive plays it), and always starts from the top. Playing it
+            // here would decode it in the background and air it mid-clip.
         } else if (data.type === 'graphic') {
             clearImage(standbyImg);
             standbyVid.style.display = 'none';
