@@ -35,6 +35,9 @@ public partial class BroadcastWindow : Window
     /// </summary>
     public event EventHandler<ShortcutKeyEventArgs>? ShortcutKeyPressed;
 
+    /// <summary>The page renderer crashed or froze and is being reloaded; payload is the failure kind.</summary>
+    public event EventHandler<string>? CanvasRecovering;
+
     /// <summary>A sound pad finished (or was stopped); payload is its slot.</summary>
     public event EventHandler<int>? SoundPadEnded;
 
@@ -149,6 +152,24 @@ public partial class BroadcastWindow : Window
             WebViewBroadcast.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
 
             WebViewBroadcast.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+
+            // A crashed or frozen page renderer (a corrupt video can do this) would leave
+            // the audience screen frozen or blank: reload it, and the control room
+            // re-sends overlays and state when the page reports ready again.
+            WebViewBroadcast.CoreWebView2.ProcessFailed += (s, args) =>
+            {
+                if (args.ProcessFailedKind is CoreWebView2ProcessFailedKind.RenderProcessExited
+                    or CoreWebView2ProcessFailedKind.RenderProcessUnresponsive
+                    or CoreWebView2ProcessFailedKind.FrameRenderProcessExited)
+                {
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        try { WebViewBroadcast.CoreWebView2?.Reload(); }
+                        catch (Exception ex) { ErrorLog.Write("Projector reload", ex); }
+                        CanvasRecovering?.Invoke(this, args.ProcessFailedKind.ToString());
+                    });
+                }
+            };
 
             // Speaker windows can show a webcam: allow the camera for our own
             // loopback canvas only, without a prompt on the projector.

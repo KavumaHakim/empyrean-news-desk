@@ -130,8 +130,15 @@ public partial class MainWindow : Window
     private void PreviewVideoMonitor_MediaOpened(object sender, RoutedEventArgs e)
     {
         _isPreviewPlaying = true;
-        PreviewTimelineSlider.Maximum = Math.Max(1, PreviewVideoMonitor.NaturalDuration.TimeSpan.TotalSeconds);
-        PreviewTimeDisplay.Text = FormatTime(0, PreviewTimelineSlider.Maximum);
+
+        // Some files (damaged, or a codec Windows only half-understands) open without a
+        // known length yet. Asking for it then throws, so use it only when it is there;
+        // the monitor timer picks the length up as soon as it becomes known.
+        var duration = PreviewVideoMonitor.NaturalDuration.HasTimeSpan
+            ? PreviewVideoMonitor.NaturalDuration.TimeSpan.TotalSeconds
+            : 0;
+        PreviewTimelineSlider.Maximum = Math.Max(1, duration);
+        PreviewTimeDisplay.Text = FormatTime(0, duration);
     }
 
     private void PreviewVideoMonitor_MediaEnded(object sender, RoutedEventArgs e)
@@ -352,10 +359,17 @@ public partial class MainWindow : Window
     private void PreviewReplay_Click(object sender, RoutedEventArgs e)
     {
         if (PreviewVideoMonitor.Source == null) return;
-        PreviewVideoMonitor.Stop();
-        PreviewVideoMonitor.Position = TimeSpan.Zero;
-        PreviewVideoMonitor.Play();
-        _isPreviewPlaying = true;
+        try
+        {
+            PreviewVideoMonitor.Stop();
+            PreviewVideoMonitor.Position = TimeSpan.Zero;
+            PreviewVideoMonitor.Play();
+            _isPreviewPlaying = true;
+        }
+        catch (InvalidOperationException)
+        {
+            // The clip is still opening or could not open; the preview simply stays put
+        }
     }
 
     private void SeekPreviewVideo()

@@ -971,11 +971,21 @@ public class MainViewModel : ViewModelBase
 
         int imported = 0;
         var failures = new List<string>();
+        var duplicates = new List<string>();
         var files = dialog.FileNames;
         for (int i = 0; i < files.Length; i++)
         {
             var file = files[i];
             var label = files.Length > 1 ? $" ({i + 1}/{files.Length})" : string.Empty;
+
+            // Already in the library (as itself or as the source of a converted copy): reuse it
+            if (MediaLibrary.FirstOrDefault(m => string.Equals(m.FilePath, file, StringComparison.OrdinalIgnoreCase)
+                                                 || string.Equals(m.OriginalPath, file, StringComparison.OrdinalIgnoreCase)) is { } existing)
+            {
+                duplicates.Add(existing.Title);
+                SelectedMedia = existing;
+                continue;
+            }
 
             var playable = await ConvertForBroadcastAsync(file, label);
             if (playable == null)
@@ -983,6 +993,11 @@ public class MainViewModel : ViewModelBase
                 failures.Add(Path.GetFileName(file));
                 continue;
             }
+
+            // A damaged video, or one in a format other than H.264, is rebuilt before it goes in
+            if (playable == file && await _converter.CheckVideoHealthAsync(file) is { } reason)
+                playable = await RepairForBroadcastAsync(file, Path.GetFileNameWithoutExtension(file), reason) ?? file;
+
 
             var item = new MediaItem
             {
@@ -1003,9 +1018,11 @@ public class MainViewModel : ViewModelBase
             imported++;
         }
 
+        var alreadyThere = duplicates.Count == 0 ? "" : $" Already in the library (not added again): {string.Join(", ", duplicates)}.";
         StatusNotification = failures.Count == 0
-            ? $"Imported {imported} item(s) into the library. Pictures of people: add a caption name and designation below the list."
-            : $"Imported {imported} item(s); could not import {string.Join(", ", failures)}. {StatusNotification}";
+            ? $"Imported {imported} item(s) into the library.{alreadyThere} Pictures of people: add a caption name and designation below the list."
+            : $"Imported {imported} item(s); could not import {string.Join(", ", failures)}.{alreadyThere} {StatusNotification}";
+
     }
 
     /// <summary>
@@ -1016,6 +1033,60 @@ public class MainViewModel : ViewModelBase
         foreach (var media in MediaLibrary.Where(m => MediaConverter.NeedsConversion(m.FilePath) && File.Exists(m.FilePath)).ToList())
         {
             await UpgradeLibraryItemAsync(media);
+        }
+
+        // Then videos that would trip the monitors or the projector: damaged files and
+        // formats other than H.264 get a clean rebuilt copy (copies already made are skipped)
+        // (rebuilt "_fixed" copies are already clean and are skipped)
+        foreach (var media in MediaLibrary.Where(m => !m.IsImage && File.Exists(m.FilePath)
+                     && !m.FilePath.EndsWith("_fixed.mp4", StringComparison.OrdinalIgnoreCase)).ToList())
+        {
+            var reason = await _converter.CheckVideoHealthAsync(media.FilePath);
+            if (reason == null) continue;
+
+            // A damaged copy converted from a camera file is made again from that clean
+            // original (no frames lost); anything else is rebuilt from the file itself
+            bool fromCamera = media.FilePath.StartsWith(_converter.CacheDirectory, StringComparison.OrdinalIgnoreCase)
+                && File.Exists(media.OriginalPath) && MediaConverter.NeedsConversion(media.OriginalPath);
+            if (fromCamera)
+                await UpgradeLibraryItemAsync(media, damagedCopy => ReconvertFromOriginalAsync(damagedCopy, media));
+            else
+                await UpgradeLibraryItemAsync(media, path => RepairForBroadcastAsync(path, media.Title, reason));
+        }
+    }
+
+    /// <summary>Throws away a damaged converted copy and converts the camera original again.</summary>
+    private async Task<string?> ReconvertFromOriginalAsync(string damagedCopy, MediaItem media)
+    {
+        StatusNotification = $"'{media.Title}': its converted copy is damaged — converting the original again…";
+        try
+        {
+            File.Delete(damagedCopy);
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write($"Remove damaged copy of '{media.Title}'", ex);
+            return null;
+        }
+        return await ConvertForBroadcastAsync(media.OriginalPath);
+    }
+
+    /// <summary>Rebuilds a problem video (status bar shows why and the progress); null when it can't be fixed.</summary>
+    private async Task<string?> RepairForBroadcastAsync(string file, string title, string reason)
+    {
+        StatusNotification = $"Fixing '{title}': it {reason}…";
+        var progress = new Progress<string>(pct => StatusNotification = $"Fixing '{title}': it {reason}… {pct}");
+        try
+        {
+            var fixedPath = await _converter.RepairVideoAsync(file, progress);
+            StatusNotification = $"Fixed '{title}' — it now plays everywhere (original file untouched).";
+            return fixedPath;
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write($"Repair '{title}'", ex);
+            StatusNotification = $"Could not fix '{title}' ({ex.Message}). Re-export it from your editor as H.264 MP4.";
+            return null;
         }
     }
 
@@ -1033,9 +1104,9 @@ public class MainViewModel : ViewModelBase
     /// the app holds it (library, rundown copies, the media server). One conversion
     /// per item even when startup and a cue ask at the same time.
     /// </summary>
-    private Task<bool> UpgradeLibraryItemAsync(MediaItem media)
+    private Task<bool> UpgradeLibraryItemAsync(MediaItem media, Func<string, Task<string?>>? produce = null)
     {
-        if (!MediaConverter.NeedsConversion(media.FilePath)) return Task.FromResult(true);
+        if (produce == null && !MediaConverter.NeedsConversion(media.FilePath)) return Task.FromResult(true);
         if (_upgrades.TryGetValue(media.Id, out var running)) return running;
 
         var task = UpgradeCoreAsync(media);
@@ -1047,7 +1118,7 @@ public class MainViewModel : ViewModelBase
             try
             {
                 var original = item.FilePath;
-                var playable = await ConvertForBroadcastAsync(original);
+                var playable = produce != null ? await produce(original) : await ConvertForBroadcastAsync(original);
                 if (playable == null) return false;
 
                 var copies = MediaLibrary.Where(m => m.Id == item.Id)
@@ -1056,7 +1127,9 @@ public class MainViewModel : ViewModelBase
                     .Distinct();
                 foreach (var copy in copies)
                 {
-                    copy!.OriginalPath = original;
+                    // A file converted before keeps pointing at its real source (the camera file)
+                    if (string.IsNullOrEmpty(copy!.OriginalPath)) copy.OriginalPath = original;
+
                     copy.FilePath = playable;
                     copy.IsAvailable = true;
                 }
@@ -3023,6 +3096,15 @@ public class MainViewModel : ViewModelBase
         window.OverlayError += (s, message) =>
         {
             _dispatcher.Invoke(() => { if (IsDrivingCanvas(window)) StatusNotification = $"OVERLAY: {message}"; });
+        };
+
+        window.CanvasRecovering += (s, kind) =>
+        {
+            _dispatcher.Invoke(() =>
+            {
+                ErrorLog.Write("Projector", new InvalidOperationException($"Broadcast page renderer failed ({kind}); reloading."));
+                StatusNotification = "PROJECTOR RECOVERED: its page crashed and was reloaded — overlays are restored; TAKE the current story again.";
+            });
         };
 
         window.SoundPadEnded += (s, slot) =>

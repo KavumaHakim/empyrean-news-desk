@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
@@ -20,6 +21,13 @@ public class MediaConverter
 
     private readonly string _cacheDirectory;
 
+    // Conversions in progress, by target file: a second request for the same file
+    // (e.g. importing it twice in a row) waits for the first instead of racing it
+    private static readonly ConcurrentDictionary<string, Lazy<Task<string>>> InFlight = new(StringComparer.OrdinalIgnoreCase);
+
+    // Below this many decode errors in the opening seconds a video counts as healthy
+    private const int DamagedErrorThreshold = 20;
+
     /// <summary>
     /// Optional platform decoder for raw stills (the WPF app supplies one backed by
     /// Windows' camera codecs). Returns true when it wrote a JPEG to the target path.
@@ -31,6 +39,9 @@ public class MediaConverter
         _cacheDirectory = cacheDirectory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NewsDesk", "Converted");
     }
+
+    /// <summary>Where converted and repaired copies are kept.</summary>
+    public string CacheDirectory => _cacheDirectory;
 
     public static bool IsCameraVideo(string path) => CameraVideoExtensions.Contains(Extension(path));
     public static bool IsRawStill(string path) => RawStillExtensions.Contains(Extension(path));
@@ -60,21 +71,92 @@ public class MediaConverter
         Directory.CreateDirectory(_cacheDirectory);
         bool video = IsCameraVideo(sourcePath);
         var target = Path.Combine(_cacheDirectory, CacheName(sourcePath) + (video ? ".mp4" : ".jpg"));
+        return await ProduceOnceAsync(target, video,
+            partial => video ? TranscodeVideoAsync(sourcePath, partial, progress, ct) : ConvertStillAsync(sourcePath, partial, ct));
+    }
+
+    /// <summary>
+    /// Makes <paramref name="target"/> once. Each attempt writes its own temporary file
+    /// (so two app windows converting the same file can't scramble each other), and a
+    /// converted video is decoded back before it is accepted: a damaged result is
+    /// thrown away instead of reaching the library.
+    /// </summary>
+    private async Task<string> ProduceOnceAsync(string target, bool isVideo, Func<string, Task> make)
+    {
         if (File.Exists(target) && new FileInfo(target).Length > 0) return target;
 
-        var partial = target + ".part" + (video ? ".mp4" : ".jpg");
+        var job = InFlight.GetOrAdd(target, t => new Lazy<Task<string>>(() => ProduceAsync(t, isVideo, make)));
+        return await job.Value;
+    }
+
+    private async Task<string> ProduceAsync(string target, bool isVideo, Func<string, Task> make)
+    {
+        var partial = $"{target}.{Guid.NewGuid():N}.part{Path.GetExtension(target)}";
         try
         {
-            if (video) await TranscodeVideoAsync(sourcePath, partial, progress, ct);
-            else await ConvertStillAsync(sourcePath, partial, ct);
+            await make(partial);
+            if (isVideo && await CountDecodeErrorsAsync(partial, CancellationToken.None) >= DamagedErrorThreshold)
+                throw new InvalidOperationException("the converted copy came out damaged — import the file again");
             File.Move(partial, target, overwrite: true);
             return target;
         }
         finally
         {
             if (File.Exists(partial)) File.Delete(partial);
+            InFlight.TryRemove(target, out _);
         }
     }
+
+    /// <summary>Decode errors in the opening seconds of a video (0 when ffmpeg isn't available).</summary>
+    private static async Task<int> CountDecodeErrorsAsync(string path, CancellationToken ct)
+    {
+        var ffmpeg = FindFfmpeg();
+        if (ffmpeg == null) return 0;
+        var (_, errors) = await RunAsync(ffmpeg, ["-v", "error", "-nostdin", "-t", "6", "-i", path, "-f", "null", "-"], null, ct);
+        return errors.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    /// <summary>
+    /// Checks a video the app could otherwise trip over: a codec other than H.264
+    /// (VP9, HEVC, AV1 … the dashboard's Windows player often can't open them) or
+    /// damaged picture data (many decode errors in the opening seconds). Returns a
+    /// plain-language reason when the file should be rebuilt, null when it is fine
+    /// or can't be checked (no ffmpeg, not a video).
+    /// </summary>
+    public async Task<string?> CheckVideoHealthAsync(string path, CancellationToken ct = default)
+    {
+        var ext = Extension(path);
+        if (!NativeVideoExtensions.Contains(ext) || !File.Exists(path)) return null;
+
+        var ffmpeg = FindFfmpeg();
+        if (ffmpeg == null) return null;
+        var ffprobe = Path.Combine(Path.GetDirectoryName(ffmpeg) ?? "", OperatingSystem.IsWindows() ? "ffprobe.exe" : "ffprobe");
+        if (!File.Exists(ffprobe)) return null;
+
+        var codec = new StringBuilder();
+        await RunAsync(ffprobe,
+            ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "default=nw=1:nk=1", path],
+            line => codec.Append(line.Trim()), ct);
+        var name = codec.ToString();
+        if (name.Length == 0) return null; // no video stream (sound only)
+        if (name != "h264") return $"uses the {name.ToUpperInvariant()} video format, which the preview monitor can't always open";
+
+        // Damage shows up immediately: decode the opening seconds and count errors
+        return await CountDecodeErrorsAsync(path, ct) >= DamagedErrorThreshold ? "is damaged (its video data has errors)" : null;
+    }
+
+    /// <summary>
+    /// Rebuilds a problem video as a clean H.264/AAC MP4 (decoding past damaged
+    /// frames), cached like camera conversions. The original file is not changed.
+    /// </summary>
+    public async Task<string> RepairVideoAsync(string source, IProgress<string>? progress = null, CancellationToken ct = default)
+    {
+        Directory.CreateDirectory(_cacheDirectory);
+        var target = Path.Combine(_cacheDirectory, CacheName(source) + "_fixed.mp4");
+        return await ProduceOnceAsync(target, isVideo: true,
+            partial => TranscodeVideoAsync(source, partial, progress, ct, tolerateErrors: true));
+    }
+
 
     /// <summary>Readable name + hash of path, size and timestamp (a re-shot file with the same name re-converts).</summary>
     private static string CacheName(string sourcePath)
@@ -86,16 +168,24 @@ public class MediaConverter
         return $"{(safe.Length > 40 ? safe[..40] : safe)}_{hash}";
     }
 
-    private async Task TranscodeVideoAsync(string source, string target, IProgress<string>? progress, CancellationToken ct)
+    private async Task TranscodeVideoAsync(string source, string target, IProgress<string>? progress, CancellationToken ct,
+        bool tolerateErrors = false)
     {
         var ffmpeg = FindFfmpeg() ?? throw new InvalidOperationException(
             "ffmpeg is needed to convert camera video. Install it with: winget install Gyan.FFmpeg — then restart NEWS DESK.");
+
+        // A damaged file is decoded past its broken frames instead of stopping at the first one
+        string[] input = tolerateErrors
+            ? ["-err_detect", "ignore_err", "-fflags", "+discardcorrupt+genpts", "-i", source]
+            : ["-i", source];
 
         // bwdif only touches frames flagged interlaced (1080i AVCHD), progressive footage passes through.
         // faststart puts the index first so the canvas can start and seek straight away.
         var args = new[]
         {
-            "-hide_banner", "-nostdin", "-y", "-i", source,
+            "-hide_banner", "-nostdin", "-y"
+        }.Concat(input).Concat(new[]
+        {
             "-map", "0:v:0", "-map", "0:a:0?",
             "-vf", "bwdif=mode=send_frame:deint=interlaced,format=yuv420p",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
@@ -103,7 +193,7 @@ public class MediaConverter
             "-movflags", "+faststart",
             "-progress", "pipe:1", "-nostats",
             target
-        };
+        }).ToArray();
 
         var duration = await ProbeDurationAsync(ffmpeg, source, ct);
         var (exit, error) = await RunAsync(ffmpeg, args, line =>

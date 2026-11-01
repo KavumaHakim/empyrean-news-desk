@@ -139,6 +139,75 @@ public class MediaConverterTests : IDisposable
         Assert.NotEmpty(reports);
     }
 
+    private static async Task<int> RunFfmpegAsync(string ffmpeg, params string[] args)
+    {
+        var psi = new ProcessStartInfo(ffmpeg) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true };
+        foreach (var a in args) psi.ArgumentList.Add(a);
+        using var p = Process.Start(psi)!;
+        await p.StandardError.ReadToEndAsync();
+        await p.WaitForExitAsync();
+        return p.ExitCode;
+    }
+
+    [Fact]
+    public async Task HealthCheck_FlagsVp9AndDamagedVideo_AndRepairMakesThemClean()
+    {
+        var ffmpeg = MediaConverter.FindFfmpeg();
+        if (ffmpeg == null) return; // the check needs ffmpeg; nothing to verify without it
+
+        var converter = new MediaConverter(Path.Combine(_dir, "cache"));
+
+        // A healthy H.264 clip passes
+        var good = Path.Combine(_dir, "good.mp4");
+        await RunFfmpegAsync(ffmpeg, "-hide_banner", "-nostdin", "-y", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25:duration=4",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", good);
+        Assert.Null(await converter.CheckVideoHealthAsync(good));
+
+        // VP9 in an MP4 (like a phone/web download) is flagged by its format
+        var vp9 = Path.Combine(_dir, "web.mp4");
+        await RunFfmpegAsync(ffmpeg, "-hide_banner", "-nostdin", "-y", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=25:duration=2",
+            "-c:v", "libvpx-vp9", "-b:v", "300k", vp9);
+        if (File.Exists(vp9)) Assert.Contains("VP9", await converter.CheckVideoHealthAsync(vp9));
+
+        // Overwrite a stretch of the picture data with junk: a damaged file
+        var damaged = Path.Combine(_dir, "damaged.mp4");
+        await RunFfmpegAsync(ffmpeg, "-hide_banner", "-nostdin", "-y", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25:duration=6",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-g", "250", "-movflags", "+faststart", damaged);
+        var bytes = await File.ReadAllBytesAsync(damaged);
+        var rng = new Random(7);
+        for (int i = bytes.Length / 5; i < bytes.Length * 4 / 5; i += 97) bytes[i] = (byte)rng.Next(256);
+        await File.WriteAllBytesAsync(damaged, bytes);
+        Assert.Contains("damaged", await converter.CheckVideoHealthAsync(damaged));
+
+        // The rebuilt copy is a clean H.264 file the check passes
+        var repaired = await converter.RepairVideoAsync(damaged);
+        Assert.EndsWith("_fixed.mp4", repaired);
+        Assert.True(new FileInfo(repaired).Length > 1000);
+        Assert.Null(await converter.CheckVideoHealthAsync(repaired));
+    }
+
+    [Fact]
+    public async Task SameFileConvertedTwiceAtOnce_GivesOneCleanCopy()
+    {
+        var ffmpeg = MediaConverter.FindFfmpeg();
+        if (ffmpeg == null) return;
+
+        // Importing the same camera file twice in quick succession used to run two
+        // conversions into one temporary file and scramble it
+        var mts = Path.Combine(_dir, "00002.MTS");
+        await RunFfmpegAsync(ffmpeg, "-hide_banner", "-nostdin", "-y", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25:duration=4",
+            "-f", "lavfi", "-i", "sine=frequency=440:duration=4", "-c:v", "libx264", "-c:a", "ac3", "-f", "mpegts", mts);
+
+        var cache = Path.Combine(_dir, "cache");
+        var first = new MediaConverter(cache).EnsurePlayableAsync(mts);
+        var second = new MediaConverter(cache).EnsurePlayableAsync(mts);
+        var paths = await Task.WhenAll(first, second);
+
+        Assert.Equal(paths[0], paths[1]);
+        Assert.Null(await new MediaConverter(cache).CheckVideoHealthAsync(paths[0]));
+        Assert.Empty(Directory.GetFiles(cache, "*.part*"));
+    }
+
     [Fact]
     public void OriginalPath_IsStoredWithTheMediaItem()
     {
