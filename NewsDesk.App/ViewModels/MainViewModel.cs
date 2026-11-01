@@ -526,7 +526,36 @@ public class MainViewModel : ViewModelBase
     public RelayCommand SelectForPreviewCommand { get; }
     public RelayCommand AddToRundownCommand { get; }
     public RelayCommand CueStoryCommand { get; }
-    public RelayCommand ReplaceWithStoryMediaCommand { get; }
+    public RelayCommand CueStoryMediaCommand { get; }
+    public RelayCommand TakeStoryMediaCommand { get; }
+
+    // The extra shot (and its own lower-third text) cued with the story / on air now
+    private StoryMedia? _cuedStoryMedia;
+    private StoryMedia? _onAirStoryMedia;
+
+    private bool _storyAutoAdvance;
+    /// <summary>When a story's video ends, take the next story live automatically. Off: the operator decides.</summary>
+    public bool StoryAutoAdvance
+    {
+        get => _storyAutoAdvance;
+        set
+        {
+            if (!SetProperty(ref _storyAutoAdvance, value)) return;
+            _db.SetSetting("Stories_AutoAdvance", value.ToString());
+        }
+    }
+
+    private bool _storyAutoCueNext;
+    /// <summary>After a take, load the next story into Preview (never on air). Off: Preview stays as the operator left it.</summary>
+    public bool StoryAutoCueNext
+    {
+        get => _storyAutoCueNext;
+        set
+        {
+            if (!SetProperty(ref _storyAutoCueNext, value)) return;
+            _db.SetSetting("Stories_AutoCueNext", value.ToString());
+        }
+    }
     public RelayCommand VoiceOverStoryMediaCommand { get; }
     public RelayCommand Window1StoryMediaCommand { get; }
     public RelayCommand Window2StoryMediaCommand { get; }
@@ -674,10 +703,11 @@ public class MainViewModel : ViewModelBase
         TakeLiveRundownCommand = new RelayCommand(TakeLiveRundown, () => SelectedHeadlineItem != null && !IsHeadlinesPlaying);
         CueStoryCommand = new RelayCommand(() => { if (SelectedHeadlineItem != null) { CueStory(SelectedHeadlineItem); _manualCueSinceTake = true; } },
             () => SelectedHeadlineItem != null && !IsHeadlinesPlaying);
-        ReplaceWithStoryMediaCommand = new RelayCommand(param => { if (param is MediaItem m) _ = ReplaceWithStoryMediaAsync(m); });
-        VoiceOverStoryMediaCommand = new RelayCommand(param => { if (param is MediaItem m) StartVoiceOverWithMedia(m); });
-        Window1StoryMediaCommand = new RelayCommand(param => { if (param is MediaItem m) ShowStoryMediaInWindow(1, m); });
-        Window2StoryMediaCommand = new RelayCommand(param => { if (param is MediaItem m) ShowStoryMediaInWindow(2, m); });
+        CueStoryMediaCommand = new RelayCommand(param => { if (param is StoryMedia shot) CueStoryMedia(shot); });
+        TakeStoryMediaCommand = new RelayCommand(param => { if (param is StoryMedia shot) _ = TakeStoryMediaAsync(shot); });
+        VoiceOverStoryMediaCommand = new RelayCommand(param => { if (param is StoryMedia shot) StartVoiceOverWithMedia(shot.Media); });
+        Window1StoryMediaCommand = new RelayCommand(param => { if (param is StoryMedia shot) ShowStoryMediaInWindow(1, shot.Media); });
+        Window2StoryMediaCommand = new RelayCommand(param => { if (param is StoryMedia shot) ShowStoryMediaInWindow(2, shot.Media); });
         AddStoryExtraMediaCommand = new RelayCommand(AddStoryExtraMedia, () => SelectedHeadlineItem != null && SelectedMedia != null);
         ShowStorySpeakerCommand = new RelayCommand(param =>
         {
@@ -704,8 +734,8 @@ public class MainViewModel : ViewModelBase
         }, () => SelectedHeadlineItem != null);
         RemoveStoryExtraMediaCommand = new RelayCommand(param =>
         {
-            if (param is not MediaItem m || SelectedHeadlineItem == null) return;
-            SelectedHeadlineItem.ExtraMedia.Remove(m);
+            if (param is not StoryMedia shot || SelectedHeadlineItem == null) return;
+            SelectedHeadlineItem.ExtraMedia.Remove(shot);
         });
 
         TakeLiveCommand = new RelayCommand(TakeLive, () => CanTakeLive());
@@ -834,7 +864,14 @@ public class MainViewModel : ViewModelBase
             h.MediaItem = mediaId == null ? null : MediaLibrary.FirstOrDefault(m => m.Id == mediaId);
             foreach (var extraId in h.ExtraMediaIds)
             {
-                if (MediaLibrary.FirstOrDefault(m => m.Id == extraId) is { } extra) h.ExtraMedia.Add(extra);
+                if (MediaLibrary.FirstOrDefault(m => m.Id == extraId) is not { } extra) continue;
+                var shot = new StoryMedia(extra);
+                if (h.ExtraLowerThirds.TryGetValue(extraId, out var text))
+                {
+                    shot.Title = text.Title;
+                    shot.Subtitle = text.Subtitle;
+                }
+                h.ExtraMedia.Add(shot);
             }
             WatchStory(h);
             HeadlineSequence.Add(h);
@@ -842,6 +879,9 @@ public class MainViewModel : ViewModelBase
         ImportOldRundownIntoStories();
         RenumberHeadlines();
         _storyLowerThirdAuto = !bool.TryParse(_db.GetSetting("Stories_AutoLowerThird", "True"), out var autoL3) || autoL3;
+        // The operator decides what goes on air: no automatic advance or cue unless switched on
+        _storyAutoAdvance = bool.TryParse(_db.GetSetting("Stories_AutoAdvance", "False"), out var autoAdvance) && autoAdvance;
+        _storyAutoCueNext = bool.TryParse(_db.GetSetting("Stories_AutoCueNext", "False"), out var autoCue) && autoCue;
 
         // Sound pads
         SoundPads.Clear();
@@ -1587,13 +1627,31 @@ public class MainViewModel : ViewModelBase
     private int HeadlinePosition(HeadlineSequenceItem item) =>
         HeadlineSequence.Where(h => h.InHeadlines).ToList().IndexOf(item) + 1;
 
-    /// <summary>Saves a story whenever its text, flags or extra media change.</summary>
+    /// <summary>Saves a story whenever its text, flags, extra media or their lower-third text change.</summary>
     private void WatchStory(HeadlineSequenceItem story)
     {
         story.PropertyChanged += OnHeadlineItemChanged;
+        foreach (var shot in story.ExtraMedia) WatchShot(story, shot);
         story.ExtraMedia.CollectionChanged += (s, e) =>
         {
+            if (e.NewItems != null)
+                foreach (StoryMedia shot in e.NewItems) WatchShot(story, shot);
             if (story.Id > 0) _db.SaveHeadlineSequenceItem(story);
+        };
+    }
+
+    private void WatchShot(HeadlineSequenceItem story, StoryMedia shot)
+    {
+        shot.PropertyChanged += (s, e) =>
+        {
+            if (story.Id > 0) _db.SaveHeadlineSequenceItem(story);
+
+            // Editing the lower third of the shot that is on air updates it straight away
+            if (ReferenceEquals(shot, _onAirStoryMedia) && _storyLowerThird != null
+                && ReferenceEquals(_stateManager.State.LiveGraphic, _storyLowerThird))
+            {
+                PublishStoryLowerThird(story, _storySpeaker);
+            }
         };
     }
 
@@ -1640,25 +1698,54 @@ public class MainViewModel : ViewModelBase
         if (story.MediaItem != null) PreparePreview(story.MediaItem);
         else PreviewHeadlineWith(BuildHeadlineDraft(story, fullSlide: true));
         _cuedStory = story;
+        _cuedStoryMedia = null; // the story's main shot, with the story's own lower third
     }
 
     /// <summary>Called by TAKE: the cued story becomes the on-air story and brings its lower third.</summary>
     private void ApplyTakenStory()
     {
         var story = _cuedStory;
+        var shot = _cuedStoryMedia;
         _cuedStory = null;
+        _cuedStoryMedia = null;
         if (story == null) return;
 
         if (OnAirStory != null && !IsHeadlinesPlaying) OnAirStory.IsOnAir = false;
         OnAirStory = story;
+        _onAirStoryMedia = shot;
         story.IsOnAir = true;
         if (!IsHeadlinesPlaying) SelectedHeadlineItem = story;
 
-        // A slide already shows the headline full-screen; media gets the lower third
-        if (StoryLowerThirdAuto && story.MediaItem != null && !string.IsNullOrWhiteSpace(story.Title))
+        // A slide already shows the headline full-screen; media gets the lower third —
+        // the shot's own text when it has some, otherwise the story's
+        var headline = Pick(shot?.Title, story.Title);
+        if (StoryLowerThirdAuto && (story.MediaItem != null || shot != null) && !string.IsNullOrWhiteSpace(headline))
             PublishStoryLowerThird(story);
         else
             ClearStoryLowerThird();
+    }
+
+    private static string Pick(string? own, string fallback) => string.IsNullOrWhiteSpace(own) ? fallback : own;
+
+    /// <summary>Cues one of a story's extra shots into Preview; TAKE puts it up with its own lower third.</summary>
+    private void CueStoryMedia(StoryMedia shot)
+    {
+        var story = HeadlineSequence.FirstOrDefault(h => h.ExtraMedia.Contains(shot));
+        if (story == null) return;
+
+        PreparePreview(shot.Media);
+        _cuedStory = story;
+        _cuedStoryMedia = shot;
+        _manualCueSinceTake = true;
+        StatusNotification = $"Cued '{shot.Media.Title}' with its lower third: \"{Pick(shot.Title, story.Title)}\" — TAKE (F5) when ready.";
+    }
+
+    /// <summary>Cues an extra shot and takes it live with its lower third.</summary>
+    private async Task TakeStoryMediaAsync(StoryMedia shot)
+    {
+        CueStoryMedia(shot);
+        await WaitScenePreparedSafeAsync(5000);
+        TakeLive();
     }
 
     /// <summary>
@@ -1668,10 +1755,13 @@ public class MainViewModel : ViewModelBase
     private void PublishStoryLowerThird(HeadlineSequenceItem story, StorySpeaker? speaker = null)
     {
         _storySpeaker = speaker;
+
+        // The shot on air may carry its own headline/summary for this story
+        var shot = ReferenceEquals(story, OnAirStory) ? _onAirStoryMedia : null;
         var lowerThird = new HeadlineDraft
         {
-            Title = story.Title,
-            Subtitle = story.Subtitle,
+            Title = Pick(shot?.Title, story.Title),
+            Subtitle = Pick(shot?.Subtitle, story.Subtitle),
             Category = string.IsNullOrWhiteSpace(story.Category) ? "NEWS" : story.Category,
             Location = story.Location,
             ReporterName = speaker?.Name ?? string.Empty,
@@ -1757,19 +1847,6 @@ public class MainViewModel : ViewModelBase
         TakeLive();
     }
 
-    /// <summary>
-    /// Swaps the on-air shot for another video/picture of the same story. The
-    /// story stays on air, so its lower third stays up.
-    /// </summary>
-    private async Task ReplaceWithStoryMediaAsync(MediaItem media)
-    {
-        _cuedStory = null;
-        PreparePreview(media);
-        _manualCueSinceTake = true;
-        await WaitScenePreparedSafeAsync(5000);
-        TakeLive();
-        StatusNotification = $"Shot replaced with '{media.Title}' — the story's lower third stays up.";
-    }
 
     /// <summary>Plays a story video's sound (or an audio file) under whatever is on air.</summary>
     private void StartVoiceOverWithMedia(MediaItem media)
@@ -1826,12 +1903,12 @@ public class MainViewModel : ViewModelBase
         var media = SelectedMedia;
         if (story == null || media == null) return;
 
-        if (ReferenceEquals(story.MediaItem, media) || story.ExtraMedia.Contains(media))
+        if (ReferenceEquals(story.MediaItem, media) || story.ExtraMedia.Any(x => ReferenceEquals(x.Media, media)))
         {
             StatusNotification = $"'{media.Title}' is already part of this story.";
             return;
         }
-        story.ExtraMedia.Add(media);
+        story.ExtraMedia.Add(new StoryMedia(media));
         StatusNotification = $"Added '{media.Title}' to the story's extra media (replace, voice-over or window while it is on air).";
     }
 
@@ -2989,7 +3066,7 @@ public class MainViewModel : ViewModelBase
                 if (!IsDrivingCanvas(window)) return;
                 _stateManager.CompleteTransition();
                 StatusNotification = $"Transition {args.Transition} completed successfully in 500ms.";
-                AutoCueNextRundownStory();
+                if (StoryAutoCueNext) AutoCueNextRundownStory();
             });
         };
 
@@ -3126,7 +3203,9 @@ public class MainViewModel : ViewModelBase
             {
                 if (!IsDrivingCanvas(window)) return;
                 if (IsHeadlinesPlaying) OnHeadlineMediaEnded();
-                else _ = AutoAdvanceRundownAsync();
+                else if (StoryAutoAdvance) _ = AutoAdvanceRundownAsync();
+                else StatusNotification = "The video on air has ended (its last frame is still showing). CUE and TAKE the next item when you're ready.";
+
             });
         };
 

@@ -28,14 +28,17 @@ public class StoryTests : IDisposable
             InHeadlines = false,
             MediaItem = new MediaItem { Id = main }
         };
-        story.ExtraMedia.Add(new MediaItem { Id = broll });
-        story.ExtraMedia.Add(new MediaItem { Id = photo });
+        story.ExtraMedia.Add(new StoryMedia(new MediaItem { Id = broll }) { Title = "BLUE HOUSE WINS", Subtitle = "Relay final" });
+        story.ExtraMedia.Add(new StoryMedia(new MediaItem { Id = photo }));
         _db.SaveHeadlineSequenceItem(story);
 
         var loaded = _db.GetHeadlineSequence().Single(s => s.Id == story.Id);
         Assert.False(loaded.InHeadlines);
         Assert.Equal(main, loaded.MediaItemId);
         Assert.Equal([broll, photo], loaded.ExtraMediaIds);
+        // Each shot keeps its own lower third; a shot left blank stores nothing
+        Assert.Equal(new StoryMediaText("BLUE HOUSE WINS", "Relay final"), loaded.ExtraLowerThirds[broll]);
+        Assert.False(loaded.ExtraLowerThirds.ContainsKey(photo));
 
         // Removing extra media sticks
         story.ExtraMedia.RemoveAt(0);

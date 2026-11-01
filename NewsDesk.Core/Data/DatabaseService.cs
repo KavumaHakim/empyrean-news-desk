@@ -145,7 +145,8 @@ public class DatabaseService : IDisposable
             ("ExtraMediaIds", "TEXT NOT NULL DEFAULT ''"),
             ("Location", "TEXT NOT NULL DEFAULT ''"),
             ("IsBreaking", "INTEGER NOT NULL DEFAULT 0"),
-            ("SpeakersText", "TEXT NOT NULL DEFAULT ''"));
+            ("SpeakersText", "TEXT NOT NULL DEFAULT ''"),
+            ("ExtraLowerThirds", "TEXT NOT NULL DEFAULT ''"));
     }
 
     private static void AddMissingColumns(SqliteConnection conn, string table, params (string Name, string Definition)[] columns)
@@ -719,7 +720,7 @@ public class DatabaseService : IDisposable
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
             SELECT Id, OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId, InHeadlines, ExtraMediaIds,
-                   Location, IsBreaking, SpeakersText
+                   Location, IsBreaking, SpeakersText, ExtraLowerThirds
             FROM HeadlineSequence
             ORDER BY OrderIndex ASC, Id ASC;
         ";
@@ -740,7 +741,8 @@ public class DatabaseService : IDisposable
                 ExtraMediaIds = ParseIds(reader.IsDBNull(8) ? "" : reader.GetString(8)),
                 Location = reader.IsDBNull(9) ? "" : reader.GetString(9),
                 IsBreaking = !reader.IsDBNull(10) && reader.GetInt32(10) != 0,
-                SpeakersText = reader.IsDBNull(11) ? "" : reader.GetString(11)
+                SpeakersText = reader.IsDBNull(11) ? "" : reader.GetString(11),
+                ExtraLowerThirds = ParseLowerThirds(reader.IsDBNull(12) ? "" : reader.GetString(12))
             });
         }
         return list;
@@ -765,7 +767,8 @@ public class DatabaseService : IDisposable
                     ExtraMediaIds = $extraIds,
                     Location = $location,
                     IsBreaking = $isBreaking,
-                    SpeakersText = $speakers
+                    SpeakersText = $speakers,
+                    ExtraLowerThirds = $extraL3
                 WHERE Id = $id;
             ";
             cmd.Parameters.AddWithValue("$id", item.Id);
@@ -773,8 +776,8 @@ public class DatabaseService : IDisposable
         else
         {
             cmd.CommandText = @"
-                INSERT INTO HeadlineSequence (OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId, InHeadlines, ExtraMediaIds, Location, IsBreaking, SpeakersText)
-                VALUES ($order, $title, $subtitle, $category, $duration, $mediaId, $inHeadlines, $extraIds, $location, $isBreaking, $speakers);
+                INSERT INTO HeadlineSequence (OrderIndex, Title, Subtitle, Category, DurationSeconds, MediaItemId, InHeadlines, ExtraMediaIds, Location, IsBreaking, SpeakersText, ExtraLowerThirds)
+                VALUES ($order, $title, $subtitle, $category, $duration, $mediaId, $inHeadlines, $extraIds, $location, $isBreaking, $speakers, $extraL3);
                 SELECT last_insert_rowid();
             ";
         }
@@ -787,9 +790,13 @@ public class DatabaseService : IDisposable
         cmd.Parameters.AddWithValue("$mediaId", (object?)item.MediaItemId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$inHeadlines", item.InHeadlines ? 1 : 0);
         // Saved from the resolved list when there is one, so removals stick
-        var extraIds = item.ExtraMedia.Count > 0 || item.ExtraMediaIds.Count == 0
-            ? item.ExtraMedia.Select(m => m.Id)
-            : item.ExtraMediaIds;
+        bool resolved = item.ExtraMedia.Count > 0 || item.ExtraMediaIds.Count == 0;
+        var extraIds = resolved ? item.ExtraMedia.Select(m => m.Media.Id) : item.ExtraMediaIds;
+        var extraL3 = resolved
+            ? item.ExtraMedia.Where(m => m.Title.Length > 0 || m.Subtitle.Length > 0)
+                .ToDictionary(m => m.Media.Id, m => new StoryMediaText(m.Title, m.Subtitle))
+            : item.ExtraLowerThirds;
+        cmd.Parameters.AddWithValue("$extraL3", extraL3.Count == 0 ? "" : System.Text.Json.JsonSerializer.Serialize(extraL3));
         cmd.Parameters.AddWithValue("$extraIds", string.Join(",", extraIds));
         cmd.Parameters.AddWithValue("$location", item.Location ?? string.Empty);
         cmd.Parameters.AddWithValue("$isBreaking", item.IsBreaking ? 1 : 0);
@@ -822,6 +829,13 @@ public class DatabaseService : IDisposable
         cmd.Parameters.AddWithValue("$target", target);
         cmd.ExecuteNonQuery();
         return target;
+    }
+
+    private static Dictionary<int, StoryMediaText> ParseLowerThirds(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try { return System.Text.Json.JsonSerializer.Deserialize<Dictionary<int, StoryMediaText>>(json) ?? []; }
+        catch (System.Text.Json.JsonException) { return []; }
     }
 
     private static List<int> ParseIds(string text) =>

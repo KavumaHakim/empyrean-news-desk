@@ -68,10 +68,13 @@ public class HeadlineSequenceItem : INotifyPropertyChanged
         HeadlineListText.Parse(SpeakersText).Select(s => new StorySpeaker(s.Title, s.Caption)).ToList();
 
     /// <summary>Other videos/pictures for this story: replace the shot, voice-over, or a speaker window.</summary>
-    public ObservableCollection<MediaItem> ExtraMedia { get; } = [];
+    public ObservableCollection<StoryMedia> ExtraMedia { get; } = [];
 
     /// <summary>Extra media ids as stored; resolved against the library into ExtraMedia on load.</summary>
     public List<int> ExtraMediaIds { get; set; } = [];
+
+    /// <summary>Per-shot lower-third text as stored, by media id; applied to ExtraMedia on load.</summary>
+    public Dictionary<int, StoryMediaText> ExtraLowerThirds { get; set; } = [];
 
     private string _subtitle = string.Empty;
     public string Subtitle { get => _subtitle; set => Set(ref _subtitle, value); }
@@ -127,3 +130,33 @@ public record StorySpeaker(string Name, string Title)
 {
     public string Label => string.IsNullOrWhiteSpace(Title) ? Name : $"{Name} — {Title}";
 }
+
+/// <summary>
+/// One extra video or picture in a story, with its own lower-third text. A blank
+/// headline or summary falls back to the story's, so it only needs filling in when
+/// this shot needs a different lower third.
+/// </summary>
+public class StoryMedia : INotifyPropertyChanged
+{
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public StoryMedia(MediaItem media) => Media = media;
+
+    public MediaItem Media { get; }
+
+    private string _title = string.Empty;
+    public string Title { get => _title; set => Set(ref _title, value ?? string.Empty); }
+
+    private string _subtitle = string.Empty;
+    public string Subtitle { get => _subtitle; set => Set(ref _subtitle, value ?? string.Empty); }
+
+    private void Set(ref string field, string value, [CallerMemberName] string? name = null)
+    {
+        if (field == value) return;
+        field = value;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+}
+
+/// <summary>Lower-third text stored for an extra media entry.</summary>
+public record StoryMediaText(string Title, string Subtitle);
