@@ -39,3 +39,8 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 .DS_Store
+
+# Local tooling and show files (they hold your media)
+.codegraph/
+*.newsdesk
+*.newsdesk.partial

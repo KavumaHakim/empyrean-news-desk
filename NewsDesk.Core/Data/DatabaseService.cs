@@ -205,7 +205,8 @@ public class DatabaseService : IDisposable
                 {
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleMedia"),
                     Path.Combine(Directory.GetCurrentDirectory(), "SampleMedia"),
-                    @"c:\Users\SHAMI\HAKIM\NEWS APP\SampleMedia"
+                    // Repo root when run from bin\<config>\<tfm>\ during development
+                    Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "SampleMedia"))
                 };
                 string? foundDir = candidates.FirstOrDefault(Directory.Exists);
                 if (foundDir != null)

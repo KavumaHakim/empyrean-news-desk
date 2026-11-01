@@ -6,6 +6,25 @@
 
 ---
 
+## Quick start on a new computer
+
+1. Download this repository (green **Code** button → **Download ZIP**, then unzip), or `git clone` it.
+2. Double-click **`SETUP.bat`**. It installs what's missing with `winget` (the .NET 8 SDK, the Microsoft Edge WebView2 Runtime and FFmpeg), builds the app, and puts a **NEWS DESK** shortcut on the desktop. You can run it again at any time.
+3. Open NEWS DESK from the shortcut (or `LAUNCH_NEWS_DESK.bat`, which rebuilds first).
+
+### Bringing a show over from another computer
+
+Your stories, titles, lower thirds, ticker, settings and media are **not** in this repository. They stay on the computer that made them. To move them:
+
+- On the old computer: **SETUP → MOVE THE SHOW → SAVE SHOW TO FILE…** writes one `.newsdesk` file with the database and every video, picture and sound the show uses. It can be several GB, so a USB drive works well.
+- On the new computer: **SETUP → MOVE THE SHOW → OPEN SHOW FILE…**, then choose a folder for the media. NEWS DESK restarts with the show exactly as it was. Whatever show was there before is kept in `%LocalAppData%\NewsDesk\Backups`.
+
+### Sound to the projector
+
+**SETUP → SOUND OUTPUT** picks where all show sound plays (the HDMI projector or the laptop speakers). The 🔊 button on the AUDIO MIXER header flips between the two.
+
+---
+
 ## 1. System Overview
 
 NEWS DESK is a television-style news broadcast control application engineered for manual news presentation on a projector or secondary monitor connected via HDMI. 
@@ -61,7 +80,7 @@ c:\Users\SHAMI\HAKIM\NEWS APP\
 │   ├── MainWindow.xaml                # Dark-themed operator control dashboard
 │   └── MainWindow.xaml.cs             # Application entry and keyboard shortcuts
 │
-└── NewsDesk.Tests/                    # Automated Unit Test Suite (33 tests)
+└── NewsDesk.Tests/                    # Automated Unit Test Suite (xUnit)
     └── NewsDeskTests.cs               # Verification of transitions, DB, and state
 ```
 
@@ -83,7 +102,7 @@ dotnet build NewsDesk.sln
 ```powershell
 dotnet test NewsDesk.sln
 ```
-*Result: 33 passed, 0 failed.*
+*All tests should pass.*
 
 ### Launch Operator Control Room
 ```powershell
