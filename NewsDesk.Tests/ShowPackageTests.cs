@@ -96,6 +96,35 @@ public class ShowPackageTests : IDisposable
     }
 
     [Fact]
+    public void ShowFolder_LoadsOnceThenKeepsTheOperatorsEdits()
+    {
+        var video = MakeFile(@"pc1\v\story.mp4", "story-video");
+        string packagePath = Path.Combine(_dir, "show" + ShowPackage.Extension);
+        using (var db = new DatabaseService(Path.Combine(_dir, @"pc1\newsdesk.db")))
+        {
+            db.AddMedia(new MediaItem { Title = "STORY", FilePath = video });
+            ShowPackage.Export(db, packagePath);
+        }
+        // The portable copy carries the show unpacked
+        var showFolder = Path.Combine(_dir, @"usb\EMPYREAN NEWS\show");
+        System.IO.Compression.ZipFile.ExtractToDirectory(packagePath, showFolder);
+
+        var pc2Db = Path.Combine(_dir, @"pc2\newsdesk.db");
+        Assert.True(ShowPackage.OpenShowFolder(showFolder, pc2Db));
+        using (var first = new DatabaseService(pc2Db))
+        {
+            var story = first.GetAllMedia().Single(m => m.Title == "STORY");
+            Assert.Equal(Path.Combine(showFolder, "media", "story.mp4"), story.FilePath);
+            first.SetSetting("Headlines_BoardTitle", "EDITED ON PC2");
+        }
+        SqliteConnection.ClearAllPools();
+
+        Assert.False(ShowPackage.OpenShowFolder(showFolder, pc2Db));   // second start: resume, don't reload
+        using var again = new DatabaseService(pc2Db);
+        Assert.Equal("EDITED ON PC2", again.GetSetting("Headlines_BoardTitle"));
+    }
+
+    [Fact]
     public void Open_RejectsAFileThatIsNotAShow()
     {
         var bogus = MakeFile("notashow" + ShowPackage.Extension, "hello");

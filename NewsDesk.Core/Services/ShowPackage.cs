@@ -123,6 +123,44 @@ public static class ShowPackage
     }
 
     /// <summary>
+    /// The portable copy: a show already unpacked in a folder (newsdesk.db, manifest.json,
+    /// media\) that the app was started with. The media stay where they are; the show is
+    /// pointed at them and swapped in once. Later starts from the same folder keep the
+    /// operator's edits. Returns true when the show was (re)loaded.
+    /// </summary>
+    public static bool OpenShowFolder(string showFolder, string dbPath)
+    {
+        showFolder = Path.GetFullPath(showFolder);
+        var manifestPath = Path.Combine(showFolder, ManifestEntry);
+        var showDb = Path.Combine(showFolder, DbEntry);
+        if (!File.Exists(manifestPath) || !File.Exists(showDb)) return false;
+
+        // Already loaded from this very folder into this computer's show: just carry on
+        var marker = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(dbPath)) ?? ".", "portable-show.txt");
+        if (File.Exists(marker) && string.Equals(File.ReadAllText(marker).Trim(), showFolder, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var manifest = JsonSerializer.Deserialize<Manifest>(File.ReadAllText(manifestPath))
+                       ?? throw new InvalidDataException("The show folder's manifest is damaged.");
+        var pending = PendingImportPath(dbPath);
+        var staging = pending + ".partial";
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(dbPath)) ?? ".");
+        File.Copy(showDb, staging, overwrite: true);
+
+        var relink = new Dictionary<string, string>();
+        foreach (var (oldPath, entryName) in manifest.Files)
+        {
+            var target = Path.Combine(showFolder, entryName.Replace('/', Path.DirectorySeparatorChar));
+            if (File.Exists(target)) relink[oldPath] = target;
+        }
+        RelinkPaths(staging, relink);
+        File.Move(staging, pending, overwrite: true);
+        ApplyPendingImport(dbPath);
+        File.WriteAllText(marker, showFolder);
+        return true;
+    }
+
+    /// <summary>
     /// Called at start-up before the database opens: swaps in an imported show.
     /// The show it replaces is kept in the Backups folder. Returns the backup path, or null.
     /// </summary>

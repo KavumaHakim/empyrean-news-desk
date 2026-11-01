@@ -45,6 +45,21 @@ public partial class MainWindow : Window
         // (the show it replaces is kept in Backups)
         try { NewsDesk.Core.Services.ShowPackage.ApplyPendingImport(DatabaseService.DefaultPath); }
         catch (Exception ex) { ErrorLog.Write("Open show", ex); }
+
+        // Portable copy: "START NEWS DESK" passes --show-folder; the show and its videos
+        // come up as they were on the computer that made the copy
+        var args = Environment.GetCommandLineArgs();
+        int showArg = Array.FindIndex(args, a => a.Equals("--show-folder", StringComparison.OrdinalIgnoreCase));
+        if (showArg >= 0 && showArg + 1 < args.Length)
+        {
+            try { NewsDesk.Core.Services.ShowPackage.OpenShowFolder(args[showArg + 1], DatabaseService.DefaultPath); }
+            catch (Exception ex)
+            {
+                ErrorLog.Write("Open portable show", ex);
+                MessageBox.Show($"The show in this folder could not be loaded:\n{ex.Message}", "NEWS DESK",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
         _db = new DatabaseService();
         _server = new MediaHttpServer(assetsDir, 8089);
         try
