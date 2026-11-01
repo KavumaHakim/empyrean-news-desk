@@ -1079,7 +1079,17 @@
                     </StackPanel>
 
                     <Border Grid.Row="2" Style="{StaticResource DockHeader}" CornerRadius="0" BorderThickness="0,1,0,1">
-                        <TextBlock Text="AUDIO MIXER" Style="{StaticResource DockTitle}"/>
+                        <DockPanel LastChildFill="False">
+                            <TextBlock DockPanel.Dock="Left" Text="AUDIO MIXER" Style="{StaticResource DockTitle}"/>
+                            <!-- Quick switch: show sound to the projector (HDMI) or the laptop speakers -->
+                            <Button DockPanel.Dock="Right" Command="{Binding SwitchAudioOutputCommand}" Style="{StaticResource SmallButton}"
+                                    Padding="6,0" FontSize="11" Margin="0,2,4,2" MaxWidth="190"
+                                    ToolTip="Sound output — click to switch between HDMI (projector) and the laptop speakers. Choose a specific device in SETUP → SOUND OUTPUT.">
+                                <TextBlock TextTrimming="CharacterEllipsis">
+                                    <Run Text="&#x1F50A; "/><Run Text="{Binding AudioOutputName, Mode=OneWay}"/><Run Text="  &#x21C4;"/>
+                                </TextBlock>
+                            </Button>
+                        </DockPanel>
                     </Border>
 
                     <StackPanel Grid.Row="3" Margin="8,6,8,0">
@@ -1731,6 +1741,16 @@
                                           SelectedValuePath="Key" DisplayMemberPath="Value" Padding="6,3" HorizontalAlignment="Left" MinWidth="280"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"
                                            Text="Each monitor playing a clip decodes it again. Lighter settings show a still frame instead, so the laptop only plays the clip on the projector (and Program). PLAY on Preview still checks a clip on demand."/>
+
+                                <TextBlock Text="SOUND OUTPUT" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextHi}" Margin="0,14,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <ComboBox ItemsSource="{Binding AudioOutputs}" SelectedValue="{Binding SelectedAudioOutputId}"
+                                              SelectedValuePath="Id" DisplayMemberPath="Label" Padding="6,3" MinWidth="280"/>
+                                    <Button Content="REFRESH" Command="{Binding RefreshAudioOutputsCommand}" Style="{StaticResource SmallButton}" Margin="6,0,0,0"/>
+                                    <Button Content="SWITCH HDMI ⇄ LAPTOP" Command="{Binding SwitchAudioOutputCommand}" Style="{StaticResource SmallButton}" Margin="6,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"
+                                           Text="Where all show sound plays — clips, voice-over, intro, speaker windows and sound pads. Switches straight away, even mid-show, and is remembered. The list fills in once the projector is open; press REFRESH after plugging in HDMI. The microphone is opened for an instant only to read device names — nothing is recorded."/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="KEYBOARD" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextHi}" Margin="0,0,0,6"/>

@@ -41,6 +41,12 @@ public partial class BroadcastWindow : Window
     /// <summary>A sound pad finished (or was stopped); payload is its slot.</summary>
     public event EventHandler<int>? SoundPadEnded;
 
+    /// <summary>The page listed the sound outputs it can play to (HDMI, laptop speakers...).</summary>
+    public event EventHandler<IReadOnlyList<AudioOutputDevice>>? AudioOutputsListed;
+
+    /// <summary>The page switched its sound output; payload is (ok, error message).</summary>
+    public event EventHandler<(bool Ok, string Error)>? AudioOutputSet;
+
     /// <summary>
     /// True when the output sits on the operator's primary screen (no projector):
     /// the window is then neither topmost nor cursor-less, so the console stays reachable.
@@ -171,11 +177,12 @@ public partial class BroadcastWindow : Window
                 }
             };
 
-            // Speaker windows can show a webcam: allow the camera for our own
-            // loopback canvas only, without a prompt on the projector.
+            // Speaker windows can show a webcam, and the sound-output list needs the
+            // microphone for an instant (only to read device names, nothing is recorded):
+            // allow both for our own loopback canvas only, without a prompt on the projector.
             WebViewBroadcast.CoreWebView2.PermissionRequested += (s, args) =>
             {
-                if (args.PermissionKind == CoreWebView2PermissionKind.Camera
+                if (args.PermissionKind is CoreWebView2PermissionKind.Camera or CoreWebView2PermissionKind.Microphone
                     && args.Uri.StartsWith(_serverBaseUrl, StringComparison.OrdinalIgnoreCase))
                 {
                     args.State = CoreWebView2PermissionState.Allow;
@@ -272,6 +279,24 @@ public partial class BroadcastWindow : Window
                      && sfxProp.TryGetProperty("slot", out var slotProp) && slotProp.TryGetInt32(out var slot))
             {
                 SoundPadEnded?.Invoke(this, slot);
+            }
+            else if (type == "audio_outputs" && root.TryGetProperty("data", out var aoProp)
+                     && aoProp.TryGetProperty("outputs", out var outputsProp) && outputsProp.ValueKind == JsonValueKind.Array)
+            {
+                var outputs = new List<AudioOutputDevice>();
+                foreach (var o in outputsProp.EnumerateArray())
+                {
+                    string id = o.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "";
+                    string label = o.TryGetProperty("label", out var labelProp) ? labelProp.GetString() ?? "" : "";
+                    if (!string.IsNullOrEmpty(id)) outputs.Add(new AudioOutputDevice(id, label));
+                }
+                AudioOutputsListed?.Invoke(this, outputs);
+            }
+            else if (type == "audio_output_set" && root.TryGetProperty("data", out var aosProp))
+            {
+                bool ok = !aosProp.TryGetProperty("ok", out var okProp) || okProp.ValueKind != JsonValueKind.False;
+                string error = aosProp.TryGetProperty("error", out var errProp) ? errProp.GetString() ?? "" : "";
+                AudioOutputSet?.Invoke(this, (ok, error));
             }
             else if (type == "vo_ended")
             {
@@ -371,3 +396,6 @@ public class ScenePreparedEventArgs : EventArgs
 
 /// <summary>An operator shortcut with the modifier keys held (Ctrl+1 sound pad, Shift+F7 …).</summary>
 public record ShortcutKeyEventArgs(Key Key, ModifierKeys Modifiers);
+
+/// <summary>A sound output the show can play to; an empty Id is the Windows default device.</summary>
+public record AudioOutputDevice(string Id, string Label);

@@ -914,6 +914,8 @@
         if (!Ctx) return;
 
         const ctx = new Ctx();
+        if (audioSinkId && typeof ctx.setSinkId === 'function') ctx.setSinkId(audioSinkId).catch(() => {});
+        audioContexts.add(ctx);
         ctx.resume().catch(() => {});
         themeCtx = ctx;
 
@@ -1369,6 +1371,7 @@
         if (!player) {
             player = new Audio();
             player.preload = 'auto';
+            applySink(player);
             player.addEventListener('ended', () => sendHostMessage('sfx_ended', { slot: slot }));
             sfxPlayers[slot] = player;
         }
@@ -1410,6 +1413,60 @@
     function hideBreakingTakeover() {
         breakingLayer.classList.add('hidden');
         breakingLayer.setAttribute('aria-hidden', 'true');
+    }
+
+    // ------------------------------------------------------------------
+    // SOUND OUTPUT: every sound of the show (program, voice-over, intro,
+    // speaker windows, sound pads) goes to one chosen device — the
+    // projector's HDMI or the laptop speakers. '' = Windows default.
+    // ------------------------------------------------------------------
+    let audioSinkId = '';
+    const audioContexts = new Set(); // live WebAudio contexts (the built-in intro theme)
+
+    function allMediaElements() {
+        return [videoA, videoB, introVideo, introAudio, voAudio,
+            ...speakerBoxes.map(b => b.video), ...Object.values(sfxPlayers)].filter(Boolean);
+    }
+
+    /** Points one element at the chosen output (used for players created later, e.g. sound pads). */
+    function applySink(el) {
+        if (el && typeof el.setSinkId === 'function') el.setSinkId(audioSinkId).catch(() => {});
+    }
+
+    async function setAudioOutput(data) {
+        audioSinkId = (data && data.deviceId) || '';
+        const results = await Promise.allSettled(allMediaElements()
+            .map(el => typeof el.setSinkId === 'function' ? el.setSinkId(audioSinkId) : Promise.resolve()));
+        audioContexts.forEach(ctx => { if (typeof ctx.setSinkId === 'function') ctx.setSinkId(audioSinkId).catch(() => {}); });
+
+        const failure = results.find(r => r.status === 'rejected');
+        sendHostMessage('audio_output_set', {
+            deviceId: audioSinkId,
+            ok: !failure,
+            error: failure ? String(failure.reason && failure.reason.message || failure.reason) : ''
+        });
+    }
+
+    async function listAudioOutputs() {
+        // Device names are only revealed once the page may use a microphone: open it
+        // for an instant (nothing is recorded) and close it straight away
+        let named = false;
+        try {
+            const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+            probe.getTracks().forEach(t => t.stop());
+            named = true;
+        } catch (e) {
+            // No microphone or not allowed: outputs are still listed, just without names
+        }
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const outputs = devices
+                .filter(d => d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications')
+                .map((d, i) => ({ id: d.deviceId, label: d.label || `Sound output ${i + 1}` }));
+            sendHostMessage('audio_outputs', { outputs: outputs, named: named });
+        } catch (e) {
+            sendHostMessage('overlay_error', { message: 'Could not list the sound outputs.' });
+        }
     }
 
     function toggleStandby(active) {
@@ -1530,6 +1587,12 @@
                 break;
             case 'hide_speakers':
                 hideSpeakers();
+                break;
+            case 'list_audio_outputs':
+                listAudioOutputs();
+                break;
+            case 'set_audio_output':
+                setAudioOutput(msg.data);
                 break;
             case 'play_sfx':
                 playSfx(msg.data);

@@ -636,6 +636,34 @@ public class MainViewModel : ViewModelBase
     /// <summary>Program monitor shows a still while the projector plays the clip.</summary>
     public bool IsProgramMonitorStill => _monitorVideoMode == "projector";
 
+    // Where the show's sound plays: the projector's HDMI, the laptop speakers... ("" = Windows default)
+    private static readonly AudioOutputDevice WindowsDefaultOutput = new("", "Windows default");
+    public ObservableCollection<AudioOutputDevice> AudioOutputs { get; } = [WindowsDefaultOutput];
+    public RelayCommand RefreshAudioOutputsCommand { get; }
+    public RelayCommand SwitchAudioOutputCommand { get; }
+
+    // Saved by name: device ids can change between sessions, names stay the same
+    private string _savedAudioOutputLabel = "";
+    private bool _rebuildingAudioOutputs;
+
+    private string _selectedAudioOutputId = "";
+    public string SelectedAudioOutputId
+    {
+        get => _selectedAudioOutputId;
+        set
+        {
+            // The list being refilled briefly clears the selection: keep the choice
+            if (_rebuildingAudioOutputs || value == null) return;
+            if (!SetProperty(ref _selectedAudioOutputId, value)) return;
+            _savedAudioOutputLabel = value == "" ? "" : AudioOutputs.FirstOrDefault(o => o.Id == value)?.Label ?? "";
+            _db.SetSetting("Audio_OutputLabel", _savedAudioOutputLabel);
+            OnPropertyChanged(nameof(AudioOutputName));
+            ApplyAudioOutput();
+        }
+    }
+
+    public string AudioOutputName => AudioOutputs.FirstOrDefault(o => o.Id == _selectedAudioOutputId)?.Label ?? WindowsDefaultOutput.Label;
+
     public RelayCommand ShowStorySpeakerCommand { get; }
     public RelayCommand StoryHeadlineOnlyCommand { get; }
 
@@ -766,6 +794,8 @@ public class MainViewModel : ViewModelBase
             RegisterSoundPadMedia(pad);
         });
         ToggleBreakingTakeoverCommand = new RelayCommand(ToggleBreakingTakeover);
+        RefreshAudioOutputsCommand = new RelayCommand(RefreshAudioOutputs);
+        SwitchAudioOutputCommand = new RelayCommand(SwitchAudioOutput);
 
         StoryHeadlineOnlyCommand = new RelayCommand(() =>
         {
@@ -925,6 +955,7 @@ public class MainViewModel : ViewModelBase
         _storyAutoCueNext = bool.TryParse(_db.GetSetting("Stories_AutoCueNext", "False"), out var autoCue) && autoCue;
         var savedMonitorMode = _db.GetSetting("Monitors_VideoMode", "program");
         _monitorVideoMode = savedMonitorMode is "projector" or "all" ? savedMonitorMode : "program";
+        _savedAudioOutputLabel = _db.GetSetting("Audio_OutputLabel", "") ?? "";
 
 
         // Sound pads
@@ -3164,6 +3195,9 @@ public class MainViewModel : ViewModelBase
                 SendCanvasCommand("set_volume", ProgramVolume);
                 SendCanvasCommand("set_scene_captions", _stateManager.State.IsSceneCaptionVisible);
 
+                // Find the sound outputs; the saved one is applied when the list comes back
+                window.SendCommand("list_audio_outputs");
+
                 // A reloaded canvas has lost its overlays: speakers come back, a VO does not
                 // (an open pop-out still has the VO, so stop it there too and keep both canvases alike)
                 if (_stateManager.State.IsVoiceOverActive)
@@ -3267,6 +3301,22 @@ public class MainViewModel : ViewModelBase
             });
         };
 
+        window.AudioOutputsListed += (s, outputs) =>
+        {
+            _dispatcher.Invoke(() => { if (IsDrivingCanvas(window)) OnAudioOutputsListed(outputs); });
+        };
+
+        window.AudioOutputSet += (s, result) =>
+        {
+            _dispatcher.Invoke(() =>
+            {
+                if (!IsDrivingCanvas(window)) return;
+                StatusNotification = result.Ok
+                    ? $"SOUND OUTPUT: {AudioOutputName}."
+                    : $"SOUND OUTPUT: could not switch to {AudioOutputName} ({result.Error}). Is it still connected? Press REFRESH.";
+            });
+        };
+
         window.ShortcutKeyPressed += (s, args) =>
         {
             _dispatcher.Invoke(() => HandleShortcutKey(args.Key, args.Modifiers));
@@ -3356,6 +3406,7 @@ public class MainViewModel : ViewModelBase
         mirror.SendCommand("configure_live_badge", state.IsLiveIndicatorVisible);
         mirror.SendCommand("set_volume", ProgramVolume);
         mirror.SendCommand("set_scene_captions", state.IsSceneCaptionVisible);
+        mirror.SendCommand("set_audio_output", new { deviceId = _selectedAudioOutputId });
 
         if (!state.IsStandbyActive && BuildSceneData(state.OnAirMedia, state.OnAirGraphic) is { } onAir)
         {
@@ -3425,6 +3476,83 @@ public class MainViewModel : ViewModelBase
             StatusNotification = $"Transition complete. Next story '{next.ListTitle}' is cued — review and TAKE LIVE when ready.";
         }
     }
+
+    #region Sound output
+
+    private void RefreshAudioOutputs()
+    {
+        if (_projectorWindow == null && _popoutWindow == null)
+        {
+            StatusNotification = "SOUND OUTPUT: open the projector (or pop-out) first — the list comes from the output window.";
+            return;
+        }
+        SendCanvasCommand("list_audio_outputs");
+    }
+
+    private void OnAudioOutputsListed(IReadOnlyList<AudioOutputDevice> outputs)
+    {
+        _rebuildingAudioOutputs = true;
+        try
+        {
+            AudioOutputs.Clear();
+            AudioOutputs.Add(WindowsDefaultOutput);
+            foreach (var output in outputs) AudioOutputs.Add(output);
+        }
+        finally
+        {
+            _rebuildingAudioOutputs = false;
+        }
+
+        // Re-find the saved device by name; if it is unplugged, fall back to the Windows default
+        var saved = _savedAudioOutputLabel == ""
+            ? WindowsDefaultOutput
+            : outputs.FirstOrDefault(o => string.Equals(o.Label, _savedAudioOutputLabel, StringComparison.OrdinalIgnoreCase));
+        _selectedAudioOutputId = saved?.Id ?? "";
+        OnPropertyChanged(nameof(SelectedAudioOutputId));
+        OnPropertyChanged(nameof(AudioOutputName));
+        ApplyAudioOutput();
+
+        if (saved == null)
+            StatusNotification = $"SOUND OUTPUT: '{_savedAudioOutputLabel}' is not connected — playing to the Windows default. Connect it and press REFRESH.";
+    }
+
+    private void ApplyAudioOutput() => SendCanvasCommand("set_audio_output", new { deviceId = _selectedAudioOutputId });
+
+    private static bool IsHdmiOutput(AudioOutputDevice output) =>
+        output.Label.Contains("HDMI", StringComparison.OrdinalIgnoreCase)
+        || output.Label.Contains("Display", StringComparison.OrdinalIgnoreCase)
+        || output.Label.Contains("DisplayPort", StringComparison.OrdinalIgnoreCase)
+        || output.Label.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)
+        || output.Label.Contains("AMD", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The quick switch: flips the show's sound between the projector (HDMI) and the laptop speakers.</summary>
+    private void SwitchAudioOutput()
+    {
+        var devices = AudioOutputs.Where(o => o.Id != "").ToList();
+        if (devices.Count == 0)
+        {
+            RefreshAudioOutputs();
+            StatusNotification = "SOUND OUTPUT: looking for sound outputs — press SWITCH again in a moment.";
+            return;
+        }
+
+        var current = devices.FirstOrDefault(o => o.Id == _selectedAudioOutputId);
+        bool onHdmi = current != null && IsHdmiOutput(current);
+        var target = onHdmi
+            ? devices.FirstOrDefault(o => !IsHdmiOutput(o))
+            : devices.FirstOrDefault(IsHdmiOutput);
+
+        if (target == null)
+        {
+            StatusNotification = onHdmi
+                ? "SOUND OUTPUT: no laptop speaker output found — choose one in SETUP → SOUND OUTPUT."
+                : "SOUND OUTPUT: no HDMI sound output found. Is the projector connected and switched on? Press REFRESH.";
+            return;
+        }
+        SelectedAudioOutputId = target.Id;
+    }
+
+    #endregion
 
     /// <summary>Every command goes to the projector and to the pop-out, so both show the same programme.</summary>
     private void SendCanvasCommand(string command, object? data = null)
